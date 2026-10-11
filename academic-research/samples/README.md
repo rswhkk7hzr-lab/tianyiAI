@@ -2,7 +2,7 @@
 
 本目录数据均为**人工构造的演示数据**（随机种子固定，可复现），仅用于：
 
-1. `tools/plot_templates.py` 的功能验证与演示
+1. `tools/` 下各脚本的功能验证与演示
 2. 演示视频中的演示素材
 
 **不得用于任何论文、报告的真实实验结论**。正式分析请使用你自己的实验数据。
@@ -15,7 +15,11 @@
 | `demo_training_curve.csv` | 3 种模型 × 60 epoch 的验证准确率与损失（单曲线） | plot_line |
 | `demo_binary_classification.csv` | 3 个模型 × 300 样本的二分类预测结果（y_true/y_score/y_pred） | roc_curves / pr_curves / confusion_matrix / AutoReport |
 | `demo_training_multi_seed.csv` | 3 模型 × 3 seed × 25 轮的多 seed 训练记录 | line_band（误差带折线） |
+| `demo_citations_mixed.txt` | 20 条混乱引文（三种来源风格，含标准号/专利/纯URL等边界条目） | citation_formatter |
 
-一行验证：`python tools/plot_templates.py --demo`（十二张图）
-三线表验证：`python tools/three_line_table.py --demo`
-一键分析验证：`python tools/auto_report.py samples/demo_group_comparison.csv --yes`
+一键验证：
+- `python tools/plot_templates.py --demo`（十二张图）
+- `python tools/three_line_table.py --demo`（Word 三线表）
+- `python tools/auto_report.py samples/demo_group_comparison.csv --yes`（一键分析）
+- `python tools/citation_formatter.py --demo`（引文批量格式化）
+- `python tools/citation_verifier.py --demo`（引文核验+元数据补全，需网络）

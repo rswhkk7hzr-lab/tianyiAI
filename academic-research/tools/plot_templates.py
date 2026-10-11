@@ -1169,16 +1169,102 @@ def _demo():
     print("\n全部演示图输出完毕（演示数据为人工构造，仅用于功能演示）")
 
 
+# ---------------------------------------------------------------------------
+# 批量重绘（v1.5：论文返修场景——数据改了，读配方一键重出全套图）
+# ---------------------------------------------------------------------------
+
+def replay_recipe(recipe_path, new_csv=None):
+    """读取 .recipe.json 配方，用（可选的）新数据重绘同一张图。
+
+    用途：论文返修改了数据 → 同参数重新出图，保证图与数据同步、格式不变。
+    recipe_path：出图时自动生成的 .recipe.json 文件
+    new_csv：新数据 CSV 路径（None 时用配方里记录的原数据——常用于样式微调后重出）
+    """
+    import json as _json
+    rp = Path(recipe_path)
+    recipe = _json.loads(rp.read_text(encoding="utf-8"))
+    template = recipe.get("template")
+    params = dict(recipe.get("params", {}))
+    old_out = recipe.get("outputs", [None])[0]
+
+    # 数据来源：新 CSV 优先；否则按原输出路径旁边的 recipe 无法存数据本体，
+    # 需要用户传 new_csv（诚实的限制：配方存的是指纹不是数据）
+    if new_csv is None:
+        return {"error": "未提供 new_csv：配方存的是参数与数据指纹（不存数据本体，避免隐私与体积问题）。"
+                         "请传入更新后的数据 CSV 路径。", "recipe": recipe}
+    df = pd.read_csv(new_csv)
+
+    fn = globals().get(template)
+    if fn is None:
+        return {"error": f"未知模板 {template}", "recipe": recipe}
+
+    # 输出路径：默认回到配方记录的原位置（覆盖旧图，保持论文引用路径不变）
+    save = params.pop("save_path", None)
+    if old_out and save is None:
+        save = old_out
+    if save:
+        params["save_path"] = save
+
+    _setup_style()
+    result = fn(df, **params)
+    # 指纹核对提示
+    old_fp = (recipe.get("data_fingerprint") or {}).get("md5")
+    if old_fp:
+        import hashlib as _h
+        new_fp = _h.md5(pd.util.hash_pandas_object(df, index=True).values.tobytes()).hexdigest()
+        if new_fp == old_fp:
+            print("[recipe] 数据指纹一致（数据未变，仅按原参数重出图）")
+        else:
+            print("[recipe] 数据已更新（指纹变化），图已按原参数用新数据重绘 ✓")
+    return result
+
+
+def _replay_cli(args):
+    if args.recipe:
+        r = replay_recipe(args.recipe, new_csv=args.data)
+        if "error" in r:
+            print(r["error"])
+        else:
+            print("重绘完成 →", r.get("save_path") or r.get("paths"))
+    elif args.recipe_dir:
+        recipes = sorted(Path(args.recipe_dir).glob("*.recipe.json"))
+        if not recipes:
+            print("目录下未找到 *.recipe.json（配方在出图时自动生成，与图片同目录）")
+            return
+        if not args.data:
+            print("批量重绘需 --data 指定新数据 CSV")
+            return
+        ok, fail = 0, 0
+        for rp in recipes:
+            try:
+                r = replay_recipe(rp, new_csv=args.data)
+                if "error" in r:
+                    print("  ✗", rp.name, "→", r["error"])
+                    fail += 1
+                else:
+                    print("  ✓", rp.name)
+                    ok += 1
+            except Exception as e:
+                print("  ✗", rp.name, "→", e)
+                fail += 1
+        print(f"批量重绘完成：成功 {ok}，失败 {fail}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="学术出图模板脚本")
     ap.add_argument("--demo", action="store_true", help="用 samples/ 示例数据生成十二张演示图")
     ap.add_argument("--out", default=None, help="演示图输出目录（默认 .temp/plots/）")
+    ap.add_argument("--recipe", default=None, help="单个 .recipe.json 配方路径（返修重绘）")
+    ap.add_argument("--recipe_dir", default=None, help="配方目录（批量重绘该目录下全部配方）")
+    ap.add_argument("--data", default=None, help="重绘用的新数据 CSV 路径")
     args = ap.parse_args(argv)
     if args.out:
         global DEFAULT_OUT
         DEFAULT_OUT = Path(args.out)
     if args.demo:
         _demo()
+    elif args.recipe or args.recipe_dir:
+        _replay_cli(args)
     else:
         ap.print_help()
 
