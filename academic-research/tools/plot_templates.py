@@ -23,6 +23,8 @@ plot_templates.py — 学术出图模板脚本（academic-research 技能 v1.3�
   4. 数据诚实：误差线、相关系数、AUC 等均由真实输入计算，不在图内虚构数值
   5. 统计规范内置：显著性标注自动选方法（正态→t，非正态→Mann-Whitney）
   6. 通用能力：save_pdf 矢量输出、绘图配方存档、风格预设（journal/thesis/colorblind）
+  7. 约定优于配置：默认输出学术规范样式，但一切可覆盖——各模板提供 colors/color/cmap
+     参数，传颜色名（"steelblue"）或十六进制（"#4C72B0"）均可，短列表自动循环
 
 快速验证：python plot_templates.py --demo  （用 samples/ 数据生成示例图）
 """
@@ -164,6 +166,77 @@ def _sig_stars(p):
     return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else "ns"
 
 
+def _resolve_colors(user_colors=None):
+    """颜色解析（v1.3.1 灵活性升级）。
+
+    - user_colors=None：回退到当前样式色板（含 set_style_preset 切换的预设）
+    - 字符串（"steelblue" / "#4C72B0"）：单色列表
+    - 列表：按序使用，短于组数时自动循环
+    """
+    if user_colors is None:
+        cycle = plt.rcParams.get("axes.prop_cycle")
+        if cycle:
+            return [c["color"] for c in list(cycle)[:8]]
+        return ["C0", "C1", "C2", "C3"]
+    if isinstance(user_colors, str):
+        return [user_colors]
+    return list(user_colors)
+
+
+# ---------------------------------------------------------------------------
+# 视觉参数统一解析（v1.3.2 灵活性收尾）
+# ---------------------------------------------------------------------------
+
+# 预设图幅（学术出版标准尺寸）
+FIG_SIZE_PRESETS = {
+    "single": (7.5, 4.5),    # 单栏/常规（默认，沿用样式文件 figsize）
+    "double": (15.0, 4.8),   # 双栏通栏
+    "square": (5.5, 5.5),    # 正方形（混淆矩阵/ROC 类）
+    "slide": (10.0, 6.0),    # 答辩 PPT 大图
+    "half": (7.5, 3.2),      # 半高宽条图
+}
+
+
+def _apply_font_scale(scale=1.0):
+    """全局字号缩放（答辩大图放大文字仍可读）。scale=1.0 无操作。"""
+    if scale == 1.0:
+        return
+    import matplotlib as _mpl
+    keys = ("font.size", "axes.labelsize", "axes.titlesize", "xtick.labelsize",
+            "ytick.labelsize", "legend.fontsize")
+    for k in keys:
+        try:
+            _mpl.rcParams[k] = _mpl.rcParams[k] * scale
+        except (KeyError, TypeError):
+            pass
+
+
+def _resolve_figsize(figsize):
+    """figsize 解析：预设名（single/double/square/slide/half）/ (w,h) 元组 / None=默认。"""
+    if figsize is None:
+        return None
+    if isinstance(figsize, str):
+        return FIG_SIZE_PRESETS.get(figsize.lower())
+    return tuple(figsize)
+
+
+def _finalize_axes(ax, *, legend_loc=None, xlim=None, ylim=None,
+                   legend_handles=None):
+    """统一收尾：图例位置、轴范围。返回 None（就地修改）。"""
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    if legend_loc is not None:
+        leg = ax.get_legend()
+        if leg is None:
+            handles, labels = ax.get_legend_handles_labels()
+            if handles:
+                ax.legend(loc=legend_loc)
+        else:
+            leg.set_loc(legend_loc)
+
+
 # ---------------------------------------------------------------------------
 # 风格预设（v1.3 创新③）
 # ---------------------------------------------------------------------------
@@ -284,7 +357,8 @@ def make_caption(template, *, x=None, y=None, group=None, stats=None, n=None,
 # ---------------------------------------------------------------------------
 
 def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
-                title=None, save_path=None, capsize=3, save_pdf=False):
+                title=None, save_path=None, capsize=3, save_pdf=False, colors=None,
+                figsize=None, font_scale=1.0, legend_loc=None, xlim=None, ylim=None):
     """分组柱状图（长表输入，均值±误差线自动聚合）。
 
     参数
@@ -294,6 +368,12 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
     y  : 数值列名（如 accuracy）
     group : 分组列名（如 model）；None 时单组
     yerr : "std"（标准差）/"se"（标准误）/ None（不画误差线）
+    colors : 自定义颜色列表（颜色名或十六进制均可，短列表自动循环），
+             如 colors=["#4C72B0", "#DD8452", "#55A868"]；缺省用当前样式色板
+    figsize : 图幅（预设名 single/double/square/slide/half 或 (宽,高) 元组）
+    font_scale : 字号缩放（答辩大图建议 1.3~1.5）
+    legend_loc : 图例位置（如 "upper left"/"best"）
+    xlim / ylim : 坐标轴范围
 
     返回
     ----
@@ -302,8 +382,10 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
     agg = df.groupby([x] + ([group] if group else []), observed=True)[y].agg(["mean", "std", "count"])
     agg["se"] = agg["std"] / np.sqrt(agg["count"].clip(lower=1))
     err_col = {"std": "std", "se": "se"}.get(yerr, None)
+    palette = _resolve_colors(colors)
+    _apply_font_scale(font_scale)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
     if group:
         piv = agg["mean"].unstack(group)  # 行=x, 列=group
         errs = agg[err_col].unstack(group) if err_col else None
@@ -313,7 +395,8 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
             kw = {}
             if errs is not None:
                 kw = {"yerr": errs[col].values, "capsize": capsize}
-            ax.bar(xs + i * w - 0.4 + w / 2, piv[col].values, width=w, label=str(col), **kw)
+            ax.bar(xs + i * w - 0.4 + w / 2, piv[col].values, width=w,
+                   label=str(col), color=palette[i % len(palette)], **kw)
         ax.set_xticks(xs)
         ax.set_xticklabels([str(v) for v in piv.index])
         ax.legend()
@@ -321,7 +404,7 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
         piv = agg["mean"]
         errs = agg[err_col] if err_col else None
         xs = np.arange(len(piv.index))
-        ax.bar(xs, piv.values, width=0.6,
+        ax.bar(xs, piv.values, width=0.6, color=palette[0],
                yerr=(errs.values if errs is not None else None), capsize=capsize)
         ax.set_xticks(xs)
         ax.set_xticklabels([str(v) for v in piv.index])
@@ -330,6 +413,7 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
     ax.set_ylabel(ylabel or y)
     if title:
         ax.set_title(title)
+    _finalize_axes(ax, legend_loc=legend_loc, xlim=xlim, ylim=ylim)
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("grouped_bar", {"x": x, "y": y, "group": group, "yerr": yerr,
                                  "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
@@ -341,17 +425,18 @@ def grouped_bar(df, x, y, group=None, yerr="std", *, xlabel=None, ylabel=None,
 # ---------------------------------------------------------------------------
 
 def grouped_box(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
-                save_path=None, show_outliers=True, save_pdf=False):
+                save_path=None, show_outliers=True, save_pdf=False, colors=None,
+                figsize=None, font_scale=1.0, legend_loc=None, xlim=None, ylim=None):
     """分组箱线图（长表输入，展示分布/中位数/离群值，适合非正态数据）。
 
     有 group 时采用"位置分组"布局：x 轴只放类别（如 dataset），每个类别下按
     group 并排多个箱体，group 用颜色+图例区分（学术出版标准画法），
     避免长组合标签在横轴重叠。
+    视觉参数：figsize/font_scale/legend_loc/xlim/ylim（同 grouped_bar）。
     """
-    fig, ax = plt.subplots()
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = ([c["color"] for c in list(cycle)[:8]] if cycle
-               else ["C0", "C1", "C2", "C3"])
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
+    palette = _resolve_colors(colors)
     x_cats = list(pd.unique(df[x].dropna()))
 
     def _box(values, positions, width, color):
@@ -396,9 +481,10 @@ def grouped_box(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
     ax.set_ylabel(ylabel or y)
     if title:
         ax.set_title(title)
+    _finalize_axes(ax, legend_loc=legend_loc, xlim=xlim, ylim=ylim)
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("grouped_box", {"x": x, "y": y, "group": group,
-                                 "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
+                                  "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
     return {"save_path": paths[0], "paths": paths}
 
 
@@ -407,17 +493,22 @@ def grouped_box(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
 # ---------------------------------------------------------------------------
 
 def scatter_fit(df, x, y, fit="linear", *, xlabel=None, ylabel=None, title=None,
-                save_path=None, annotate_stats=True, save_pdf=False):
+                save_path=None, annotate_stats=True, save_pdf=False, color=None,
+                figsize=None, font_scale=1.0, s=None, alpha=None, xlim=None, ylim=None):
     """散点图 + 拟合线。
 
     fit : "linear"（一次）/ "quadratic"（二次）/ "none"（仅散点）
+    color : 散点颜色；s : 点大小；alpha : 透明度；
+    figsize/font_scale/xlim/ylim : 同其他模板
     返回 dict：save_path 与统计结果（Pearson r/p、Spearman rho/p、拟合系数）。
     """
     d = df[[x, y]].dropna()
     xs, ys = d[x].to_numpy(dtype=float), d[y].to_numpy(dtype=float)
 
-    fig, ax = plt.subplots()
-    ax.scatter(xs, ys, s=28, alpha=0.85, edgecolors="none")
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
+    ax.scatter(xs, ys, s=(28 if s is None else s),
+               alpha=(0.85 if alpha is None else alpha), edgecolors="none", color=color)
 
     stats_out = {}
     if len(xs) >= 3:
@@ -450,9 +541,10 @@ def scatter_fit(df, x, y, fit="linear", *, xlabel=None, ylabel=None, title=None,
     ax.set_ylabel(ylabel or y)
     if title:
         ax.set_title(title)
+    _finalize_axes(ax, legend_loc=None, xlim=xlim, ylim=ylim)
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("scatter_fit", {"x": x, "y": y, "fit": fit,
-                                 "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
+                                  "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
     stats_out["save_path"] = paths[0]
     stats_out["paths"] = paths
     return stats_out
@@ -463,12 +555,15 @@ def scatter_fit(df, x, y, fit="linear", *, xlabel=None, ylabel=None, title=None,
 # ---------------------------------------------------------------------------
 
 def heatmap(df, *, cmap="RdBu_r", vmin=None, vmax=None, annot=True, fmt=".2f",
-            title=None, save_path=None, cbar_label="相关系数 r", save_pdf=False):
+            title=None, save_path=None, cbar_label="相关系数 r", save_pdf=False,
+            figsize=None, font_scale=1.0):
     """相关矩阵热力图。df 传入数值矩阵（或先 df.corr()）。
 
     vmin/vmax 缺省时自动判断：数值双向分布 → (-1, 1) 对称量程；否则按数据范围。
+    figsize/font_scale：图幅与字号缩放。
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
     m = df.to_numpy(dtype=float)
     if vmin is None and vmax is None:
         if m.min() < -0.1 and m.max() > 0.1:  # 疑似相关矩阵 → 对称量程
@@ -502,7 +597,8 @@ def heatmap(df, *, cmap="RdBu_r", vmin=None, vmax=None, annot=True, fmt=".2f",
 
 def plot_line(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
                save_path=None, marker_every=None, best="max", annotate_best=True,
-               save_pdf=False):
+               save_pdf=False, colors=None, figsize=None, font_scale=1.0,
+               legend_loc=None, xlim=None, ylim=None, lw=None, ms=None):
     """折线图 / 训练曲线（长表输入，适合 loss、accuracy 随 epoch 变化等趋势数据）。
 
     参数
@@ -511,13 +607,14 @@ def plot_line(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
     marker_every : 每隔几个点画一次标记（默认自动：点密时隔点，避免标记重叠）
     best : "max"（标注最大值，如 accuracy）/ "min"（标注最小值，如 loss）
     annotate_best : True 时每组自动标注最优点的坐标（虚线引导 + 数值）
+    lw / ms : 线宽 / 标记大小；figsize/font_scale/legend_loc/xlim/ylim 同其他模板
 
     返回 dict：save_path / paths / best（各组最优值与位置）
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
     groups = list(pd.unique(df[group].dropna())) if group else [None]
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else None
+    palette = _resolve_colors(colors)
     markers = ["o", "s", "^", "D", "v", "P", "X", "*"]
     best_out = {}
 
@@ -529,7 +626,7 @@ def plot_line(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
         sub = (df[df[group] == g] if group else df)[[x, y]].dropna().sort_values(x)
         xs, ys = sub[x].to_numpy(dtype=float), sub[y].to_numpy(dtype=float)
         kw = {"marker": markers[gi % len(markers)], "markevery": marker_every,
-              "ms": 5, "lw": 1.5}
+              "ms": (5 if ms is None else ms), "lw": (1.5 if lw is None else lw)}
         if palette:
             kw["color"] = palette[gi % len(palette)]
         if g is not None:
@@ -550,9 +647,10 @@ def plot_line(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
     ax.set_ylabel(ylabel or y)
     if title:
         ax.set_title(title)
+    _finalize_axes(ax, legend_loc=legend_loc, xlim=xlim, ylim=ylim)
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("plot_line", {"x": x, "y": y, "group": group, "best": best,
-                                 "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
+                                  "xlabel": xlabel, "ylabel": ylabel}, paths, data=df)
     return {"save_path": paths[0], "paths": paths, "best": best_out}
 
 
@@ -561,19 +659,20 @@ def plot_line(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
 # ---------------------------------------------------------------------------
 
 def violin(df, x, y, *, xlabel=None, ylabel=None, title=None,
-           save_path=None, save_pdf=False, annotate_sig=True):
+           save_path=None, save_pdf=False, annotate_sig=True, colors=None,
+           figsize=None, font_scale=1.0, legend_loc=None, xlim=None, ylim=None):
     """小提琴图：展示各组数值分布形态（带宽≈密度），内嵌迷你箱线。
 
     比 grouped_box 多表达"分布形状"（单峰/双峰/偏态），适合分布差异论证。
     annotate_sig=True 时自动做两两检验并画星号线（正态→t，非正态→Mann-Whitney）。
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
     cats = list(pd.unique(df[x].dropna()))
     data = [df[df[x] == c][y].dropna().values for c in cats]
     vp = ax.violinplot(data, positions=range(len(cats)), widths=0.7,
                        showmeans=False, showextrema=False)
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else ["C0", "C1", "C2"]
+    palette = _resolve_colors(colors)
     for i, body in enumerate(vp["bodies"]):
         color = palette[i % len(palette)]
         body.set_facecolor(color)
@@ -602,6 +701,8 @@ def violin(df, x, y, *, xlabel=None, ylabel=None, title=None,
         ax.set_ylim(y_min - y_span * 0.08, y_max + y_span * 0.30)
         n_sig = _annotate_significance(ax, pairs, {c: i for i, c in enumerate(cats)},
                                        y_max, y_span)
+    _finalize_axes(ax, legend_loc=legend_loc, xlim=xlim,
+                   ylim=(ylim if ylim is not None else ax.get_ylim()))
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("violin", {"x": x, "y": y, "annotate_sig": annotate_sig}, paths, data=df)
     caption = make_caption("violin", x=x, y=y, n=int(df.groupby(x, observed=True).size().sum()),
@@ -614,14 +715,16 @@ def violin(df, x, y, *, xlabel=None, ylabel=None, title=None,
 # 模板 7：Q-Q 图（正态性诊断）
 # ---------------------------------------------------------------------------
 
-def qq_plot(df, y, group=None, *, save_path=None, save_pdf=False, title=None):
+def qq_plot(df, y, group=None, *, save_path=None, save_pdf=False, title=None,
+            color=None, figsize=None, font_scale=1.0):
     """Q-Q 图：样本分位数 vs 理论正态分位数。点落在对角线上≈正态。
 
     group 指定时自动分子图（组数 >4 时自动换行，最多 4 列），并附
     Shapiro-Wilk 检验 p 值标注——统计前提检验的"可视化证据"，
-    与指南第 2 节决策表联动。
+    与指南第 2 节决策表联动。figsize（单图时生效）/font_scale 可调。
     """
     import math
+    _apply_font_scale(font_scale)
     if group:
         cats = list(pd.unique(df[group].dropna()))
         ncols = min(len(cats), 4)  # 超过 4 组自动换行，防止一行过宽
@@ -635,7 +738,7 @@ def qq_plot(df, y, group=None, *, save_path=None, save_pdf=False, title=None):
         axes = flat[:len(cats)]
     else:
         cats = [None]
-        fig, axes = plt.subplots(1, 1, figsize=(4.5, 4))
+        fig, axes = plt.subplots(1, 1, figsize=_resolve_figsize(figsize) or (4.5, 4))
         axes = np.array([axes])
     results = {}
     for ax, g in zip(axes, cats):
@@ -647,7 +750,8 @@ def qq_plot(df, y, group=None, *, save_path=None, save_pdf=False, title=None):
         probs = (np.arange(1, n + 1) - 0.375) / (n + 0.25)
         theo = sps.norm.ppf(probs) if sps is not None else probs
         mean, std = vals.mean(), vals.std(ddof=1)
-        ax.scatter(theo, (vals - mean) / std if std > 0 else vals, s=16, alpha=0.85)
+        ax.scatter(theo, (vals - mean) / std if std > 0 else vals, s=16, alpha=0.85,
+                   color=color)
         ax.plot([-3, 3], [-3, 3], ls="--", lw=1, color="gray")
         ax.set_xlim(-3.2, 3.2)
         ax.set_ylim(-3.2, 3.2)
@@ -675,17 +779,19 @@ def qq_plot(df, y, group=None, *, save_path=None, save_pdf=False, title=None):
 # ---------------------------------------------------------------------------
 
 def roc_curves(df, label_col, score_col, model_col=None, *, save_path=None,
-               save_pdf=False, title=None):
+               save_pdf=False, title=None, colors=None, figsize=None,
+               font_scale=1.0, legend_loc=None, lw=None):
     """ROC 曲线：多模型对比 + 自动计算 AUC + 随机基线。
 
     df 长表：label_col（0/1 真实标签）、score_col（预测为正类的概率/分数）、
-    model_col（模型名，多模型时分组）。
+    model_col（模型名，多模型时分组）。figsize 默认 square。
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize) or (5.5, 5.5))
+    _apply_font_scale(font_scale)
     models = list(pd.unique(df[model_col].dropna())) if model_col else [None]
     results = {}
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else ["C0", "C1", "C2"]
+    palette = _resolve_colors(colors)
+    line_lw = 1.5 if lw is None else lw
     for mi, m in enumerate(models):
         sub = df if m is None else df[df[model_col] == m]
         labels = sub[label_col].to_numpy(dtype=int)
@@ -704,7 +810,7 @@ def roc_curves(df, label_col, score_col, model_col=None, *, save_path=None,
         auc = float(np.trapezoid(tpr, fpr)) if hasattr(np, "trapezoid") else float(np.trapz(tpr, fpr))
         color = palette[mi % len(palette)]
         name = str(m) if m is not None else "model"
-        ax.plot(fpr, tpr, color=color, lw=1.5, label=f"{name} (AUC={auc:.3f})")
+        ax.plot(fpr, tpr, color=color, lw=line_lw, label=f"{name} (AUC={auc:.3f})")
         results[name] = {"auc": round(auc, 4), "n": int(len(labels)),
                          "n_pos": P, "n_neg": N}
     ax.plot([0, 1], [0, 1], ls="--", lw=0.9, color="gray", label="随机基线 (AUC=0.5)")
@@ -712,7 +818,7 @@ def roc_curves(df, label_col, score_col, model_col=None, *, save_path=None,
     ax.set_ylabel("真正例率 TPR")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.02)
-    ax.legend(loc="lower right", fontsize=9)
+    ax.legend(loc=(legend_loc or "lower right"), fontsize=9)
     if title:
         ax.set_title(title)
     paths = _save_fig(fig, save_path, save_pdf)
@@ -726,16 +832,19 @@ def roc_curves(df, label_col, score_col, model_col=None, *, save_path=None,
 # ---------------------------------------------------------------------------
 
 def pr_curves(df, label_col, score_col, model_col=None, *, save_path=None,
-              save_pdf=False, title=None):
+              save_pdf=False, title=None, colors=None, figsize=None,
+              font_scale=1.0, legend_loc=None, lw=None):
     """PR 曲线：查准率-查全率，不平衡数据（正类稀少）时比 ROC 更敏感。自动计算 AP。
 
     随机基线 = 全量数据的正类率 P(y=1)，与单模型数据的波动无关。
+    figsize 默认 square。lw：曲线线宽。
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize) or (5.5, 5.5))
+    _apply_font_scale(font_scale)
+    line_lw = 1.5 if lw is None else lw
     models = list(pd.unique(df[model_col].dropna())) if model_col else [None]
     results = {}
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else ["C0", "C1", "C2"]
+    palette = _resolve_colors(colors)
     # 随机基线：全量数据正类率（避免受遍历到的第一个模型影响）
     all_labels = df[label_col].dropna().to_numpy(dtype=int)
     base_rate = float(all_labels.mean()) if len(all_labels) else None
@@ -758,7 +867,7 @@ def pr_curves(df, label_col, score_col, model_col=None, *, save_path=None,
         ap = float(np.trapezoid(precision, recall)) if hasattr(np, "trapezoid") else float(np.trapz(precision, recall))
         color = palette[mi % len(palette)]
         name = str(m) if m is not None else "model"
-        ax.plot(recall, precision, color=color, lw=1.5, label=f"{name} (AP={ap:.3f})")
+        ax.plot(recall, precision, color=color, lw=line_lw, label=f"{name} (AP={ap:.3f})")
         results[name] = {"ap": round(ap, 4), "n_pos": P}
     if base_rate is not None:
         ax.axhline(base_rate, ls="--", lw=0.9, color="gray",
@@ -767,7 +876,7 @@ def pr_curves(df, label_col, score_col, model_col=None, *, save_path=None,
     ax.set_ylabel("查准率 Precision")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.05)
-    ax.legend(loc="lower left", fontsize=9)
+    ax.legend(loc=(legend_loc or "lower left"), fontsize=9)
     if title:
         ax.set_title(title)
     paths = _save_fig(fig, save_path, save_pdf)
@@ -781,11 +890,13 @@ def pr_curves(df, label_col, score_col, model_col=None, *, save_path=None,
 # ---------------------------------------------------------------------------
 
 def confusion_matrix(df, true_col, pred_col, *, normalize=True, save_path=None,
-                     save_pdf=False, title=None, cmap="Blues"):
+                     save_pdf=False, title=None, cmap="Blues", figsize=None,
+                     font_scale=1.0, annot_size=None):
     """混淆矩阵：真实标签 × 预测标签。
 
     normalize=True 显示行归一化占比，False 显示计数。
     自动输出总体准确率与各类别 Precision/Recall/F1。
+    figsize 默认 square；annot_size：格内数字字号。
     """
     true = df[true_col].astype(str)
     pred = df[pred_col].astype(str)
@@ -796,7 +907,8 @@ def confusion_matrix(df, true_col, pred_col, *, normalize=True, save_path=None,
         m[idx[t], idx[p]] += 1
     display = m / m.sum(axis=1, keepdims=True).clip(min=1) if normalize else m
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize) or (5.5, 5.0))
+    _apply_font_scale(font_scale)
     im = ax.imshow(display, cmap=cmap, vmin=0,
                    vmax=display.max() if normalize else None)
     ax.set_xticks(range(len(classes)))
@@ -810,7 +922,8 @@ def confusion_matrix(df, true_col, pred_col, *, normalize=True, save_path=None,
         for j in range(len(classes)):
             txt = f"{int(m[i, j])}" if not normalize else f"{display[i, j]:.3f}"
             color = "white" if display[i, j] > thresh else "black"
-            ax.text(j, i, txt, ha="center", va="center", fontsize=9, color=color)
+            ax.text(j, i, txt, ha="center", va="center",
+                    fontsize=(9 if annot_size is None else annot_size), color=color)
     if normalize:
         cb = fig.colorbar(im, ax=ax, shrink=0.85)
         cb.set_label("行归一化占比")
@@ -841,12 +954,14 @@ def confusion_matrix(df, true_col, pred_col, *, normalize=True, save_path=None,
 # ---------------------------------------------------------------------------
 
 def radar(df, metrics=None, model_col=None, *, save_path=None, save_pdf=False,
-          title=None, higher_is_better=None):
+          title=None, higher_is_better=None, colors=None, figsize=None,
+          font_scale=1.0, lw=None, fill_alpha=None):
     """雷达图：多指标综合性能对比（指标数 3-10，建议 ≤8）。
 
     df 宽表：每行一个模型，各列为指标。metrics 指定参与对比的数值列；
     higher_is_better：{列名: True/False}，False 的指标（如时延）自动反向归一化；
     所有指标 min-max 归一到 [0,1]，不同量纲可比。
+    figsize 默认 square；lw 线宽；fill_alpha 填充透明度。
     """
     if model_col and model_col in df.columns:
         data = df.set_index(model_col)
@@ -875,16 +990,16 @@ def radar(df, metrics=None, model_col=None, *, save_path=None, save_pdf=False,
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
     angles += angles[:1]
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=_resolve_figsize(figsize) or (5.5, 5.5))
     ax = fig.add_subplot(111, polar=True)
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else ["C0", "C1", "C2"]
+    _apply_font_scale(font_scale)
+    palette = _resolve_colors(colors)
     for i, (label, row) in enumerate(norm.iterrows()):
         vals = row.tolist()
         vals += vals[:1]
         color = palette[i % len(palette)]
-        ax.plot(angles, vals, lw=1.5, color=color, label=str(label))
-        ax.fill(angles, vals, alpha=0.12, color=color)
+        ax.plot(angles, vals, lw=(1.5 if lw is None else lw), color=color, label=str(label))
+        ax.fill(angles, vals, alpha=(0.12 if fill_alpha is None else fill_alpha), color=color)
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(metrics)
     ax.set_ylim(0, 1)
@@ -904,17 +1019,22 @@ def radar(df, metrics=None, model_col=None, *, save_path=None, save_pdf=False,
 # ---------------------------------------------------------------------------
 
 def line_band(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
-              save_path=None, save_pdf=False, band=1.0, annotate_best=True):
+              save_path=None, save_pdf=False, band=1.0, annotate_best=True,
+              colors=None, figsize=None, font_scale=1.0, legend_loc=None,
+              xlim=None, ylim=None, lw=None, band_alpha=None):
     """误差带折线：多 seed 重复实验的 mean±band×std 半透明带。
 
     深度学习规范画法：单条线画训练曲线会被审稿人质疑未报告稳定性；
     此模板以均值主线 + 半透明带表达跨 seed 稳定性。
     df 长表：x（epoch）、y（指标）、group（模型），每个 (x, group) 下多个观测。
+    band：带宽倍数（1.0=±1倍标准差）；band_alpha：带透明度；lw：主线宽。
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_resolve_figsize(figsize))
+    _apply_font_scale(font_scale)
     agg = df.groupby([x] + ([group] if group else []), observed=True)[y].agg(["mean", "std"])
-    cycle = plt.rcParams.get("axes.prop_cycle")
-    palette = [c["color"] for c in list(cycle)[:8]] if cycle else ["C0", "C1", "C2"]
+    palette = _resolve_colors(colors)
+    line_lw = 1.5 if lw is None else lw
+    fill_alpha = 0.18 if band_alpha is None else band_alpha
     stats_out = {}
     if group:
         for gi, g in enumerate(agg.index.get_level_values(group).unique()):
@@ -923,9 +1043,9 @@ def line_band(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
             mean = sub["mean"].to_numpy(dtype=float)
             std = sub["std"].fillna(0).to_numpy(dtype=float)
             color = palette[gi % len(palette)]
-            ax.plot(xs, mean, lw=1.5, color=color, label=str(g))
+            ax.plot(xs, mean, lw=line_lw, color=color, label=str(g))
             ax.fill_between(xs, mean - band * std, mean + band * std,
-                            alpha=0.18, color=color, linewidth=0)
+                            alpha=fill_alpha, color=color, linewidth=0)
             stats_out[str(g)] = {"final_mean": round(float(mean[-1]), 4),
                                  "final_std": round(float(std[-1]), 4) if std.size else None}
         ax.legend()
@@ -942,14 +1062,15 @@ def line_band(df, x, y, group=None, *, xlabel=None, ylabel=None, title=None,
         xs = agg.index.to_numpy(dtype=float)
         mean = agg["mean"].to_numpy(dtype=float)
         std = agg["std"].fillna(0).to_numpy(dtype=float)
-        ax.plot(xs, mean, lw=1.5, color=palette[0])
+        ax.plot(xs, mean, lw=line_lw, color=palette[0])
         ax.fill_between(xs, mean - band * std, mean + band * std,
-                        alpha=0.18, color=palette[0], linewidth=0)
+                        alpha=fill_alpha, color=palette[0], linewidth=0)
         stats_out["overall"] = {"final_mean": round(float(mean[-1]), 4)}
     ax.set_xlabel(xlabel or x)
     ax.set_ylabel(ylabel or y)
     if title:
         ax.set_title(title)
+    _finalize_axes(ax, legend_loc=legend_loc, xlim=xlim, ylim=ylim)
     paths = _save_fig(fig, save_path, save_pdf)
     _save_recipe("line_band", {"x": x, "y": y, "group": group, "band": band}, paths, data=df)
     caption = make_caption("line_band", x=x, y=y, group=group,
