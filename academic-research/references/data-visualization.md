@@ -145,6 +145,52 @@ pt.set_style_preset("journal")      # 黑白期刊版；另可选 thesis（彩�
 - **绘图配方存档**：每次出图自动落盘同名 `.recipe.json`（模板名/参数/数据 MD5 指纹/输出路径），论文返修改数据后可核对图形与数据是否同步，支持一键复现；
 - **图注自动生成**：violin / line_band 等模板返回 `caption` 字段（规范图注文字），可直接用于论文排版；
 - **风格预设**：`set_style_preset("journal"/"thesis"/"colorblind")` 一键切换黑白期刊/彩色论文/色盲友好配色；
+- **颜色/样式快速自定义**（v1.3.1，约定优于配置）：所有模板暴露 `colors`（多系列图）或 `color`（单系列图）参数，热力图/混淆矩阵暴露 `cmap`。默认值=学术规范，想改一行搞定：
+
+```python
+# 用法1：十六进制颜色列表（按分组顺序对应）
+pt.grouped_bar(df, x="dataset", y="accuracy", group="model",
+               colors=["#4C72B0", "#DD8452", "#55A868"])
+
+# 用法2：颜色名字符串（matplotlib 全部命名色可用，单色统一）
+pt.violin(df, x="model", y="accuracy", colors="steelblue")
+
+# 用法3：短列表自动循环（2 色循环 3 个模型）
+pt.roc_curves(df, label_col="y_true", score_col="y_score", model_col="model",
+              colors=["darkorange", "purple"])
+
+# 用法4：不传参数 → 默认学术色板（黑白打印友好），完全不受影响
+```
+
+  常用颜色参考：蓝 `#4C72B0` / 橙 `#DD8452` / 绿 `#55A868` / 红 `#C44E52` / 紫 `#8172B3`；颜色名如 `steelblue`、`crimson`、`darkorange`、`teal`；搭配好的科研配色可搜索 seaborn color palette（如 "deep"/"muted"）取色值。自定义颜色时注意保持黑白打印可辨（亮度差异足够）与色盲友好（避免红绿同图）；
+
+- **视觉参数快速微调**（v1.3.2，默认即满意初版、微调只改参数不改代码）：
+
+| 参数 | 作用 | 典型用法 |
+|---|---|---|
+| `figsize` | 图幅 | 预设名 `"single"`(默认)/`"double"`(双栏通栏)/`"square"`(方图)/`"slide"`(答辩宽屏)/`"half"`(半高)，或 `(宽,高)` 元组 |
+| `font_scale` | 全局字号缩放 | 答辩大图 `font_scale=1.4`，投影后排仍可读 |
+| `legend_loc` | 图例位置 | `"upper left"` / `"best"` 等 matplotlib 位置串 |
+| `xlim` / `ylim` | 轴范围 | 聚焦区间、统一多图刻度 |
+| `lw` | 线宽（折线/曲线类） | `lw=2.0` 更醒目 |
+| `s` / `alpha` | 散点大小/透明度（scatter_fit） | 点密时 `alpha=0.5` 减遮挡 |
+| `ms` | 标记大小（plot_line） | — |
+| `annot_size` | 格内字号（confusion_matrix） | 类别多格小时调小 |
+| `band_alpha` / `fill_alpha` | 误差带/雷达填充透明度 | — |
+
+```python
+# 答辩场景一键微调：宽屏大图 + 字号放大 + 图例右上
+pt.grouped_bar(df, x="dataset", y="accuracy", group="model",
+               figsize="slide", font_scale=1.4, legend_loc="upper right")
+# 期刊双栏通栏
+pt.plot_line(dfc, x="epoch", y="val_accuracy", group="model", figsize="double")
+# 聚焦区间 + 加粗主线
+pt.plot_line(dfc, x="epoch", y="val_accuracy", group="model",
+             ylim=(60, 95), lw=2.0)
+```
+
+  工作模式建议：**先用默认参数出"满意初版"（零参数调用即学术规范），有具体不满（图太小/字太小/图例挡线）再用对应参数一行微调**——不必预先调参；
+
 - 中文字体自动兜底（仅追加本机实际存在的字体）、无界面环境安全（Agg）。
 
 ### 5.2 手动绘图时（模板覆盖不到的图型）
