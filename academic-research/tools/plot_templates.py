@@ -97,6 +97,11 @@ def _setup_style():
     matplotlib.rcParams["axes.unicode_minus"] = False
 
 
+# 模块导入即初始化（v2.0 修复）：此前 _setup_style 仅在 --demo / --recipe CLI 路径
+# 调用，import 后直接调用模板函数时无学术样式与中文字体兜底，中文标签渲染为方框
+_setup_style()
+
+
 def _ensure_dir(save_path: Path) -> Path:
     save_path.parent.mkdir(parents=True, exist_ok=True)
     return save_path

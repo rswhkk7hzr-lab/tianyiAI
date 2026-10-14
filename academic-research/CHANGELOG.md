@@ -2,6 +2,19 @@
 
 本技能采用语义化版本号记录迭代，作为作品「迭代优化」的过程档案。
 
+## v2.0.1（2026-10-14）—— 修复：import 调用时中文字体与学术样式未初始化
+
+> 集成版冒烟测试发现（v1.3 遗留缺陷，历轮回归未暴露的原因见下）。
+
+### 修复（Bug Fixes）
+- **`plot_templates.py` 库调用路径样式缺失**：`_setup_style()` 此前仅在 `--demo` / `--recipe` CLI 入口调用，`import plot_templates` 后直接调用模板函数（智能体实际使用方式）时**无学术样式、无中文字体兜底**——中文轴标签全部渲染为方框（matplotlib 默认 DejaVu Sans 无 CJK 字形）。历轮自验走 `--demo` 路径恰好覆盖了初始化，故一直未暴露——**"自验路径 ≠ 使用路径"的典型教训**。
+- 修复：`_setup_style()` 提升为模块导入即执行（幂等，用户仍可自行覆盖 rcParams）。
+
+### 验证
+- 修复前：`grouped_box` 中文标签"数据集/准确率"全部方框乱码（UserWarning: Glyph missing 刷屏）；
+- 修复后：`font.family` 正确展开为 `['Times New Roman', 'SimSun', 'STSong', 'DejaVu Serif', …]`，中文正常渲染，`xtick.direction=in`、衬线字体、300 DPI 等 mplstyle 全部生效（rcParams 精确验证 + 视觉验证双确认）；
+- 十二图全量回归：全部通过（退出码 0，12 张演示图完整输出）。
+
 ## v2.0.0-integration（2026-10-14）—— 三分支集成：7 模块完整版（feature/integration-v2）
 
 > 团队协作里程碑：三个功能分支 merge 整合为 7 模块完整版，两个 merge 节点保留完整协作历史。
