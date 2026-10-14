@@ -2,6 +2,29 @@
 
 本技能采用语义化版本号记录迭代，作为作品「迭代优化」的过程档案。
 
+## v2.0.0-integration（2026-10-14）—— 三分支集成：7 模块完整版（feature/integration-v2）
+
+> 团队协作里程碑：三个功能分支 merge 整合为 7 模块完整版，两个 merge 节点保留完整协作历史。
+> - `feature/data-visualization-v1.3`（本分支线，v1.2→v1.6）：12 类绘图模板 + AutoReport + 三线表 + 引文批量格式化/真伪核验/年份结构 + 申报书撰写体检双线 + 5 个实测脚本
+> - `feature/academic-research-v2`（队友）：文献综述方法学大升级 + 机制图 + 三级核验框架 + 新增文档导出、审稿 rubric 两模块
+> - `improve/paper-polish-layout`（队友）：润色模块文体路由重构 + 7 个分场景子指南
+> 冲突解决原则：以 v1.6 模块化 SKILL 结构为骨架，逐一融合队友分支增量，交叉引用节号全部修正对齐。
+
+### 集成内容
+- **SKILL.md：五模块 → 七模块分节结构**——新增模块六「学术文档导出」（document-export.md）、模块七「审稿 rubric」（peer-review.md）；模块四升级为「论文与文章润色」（文体识别 + 文风匹配，不限于学术文稿）；通用工作流程新增第 4 步「交付前核验」（三级引用核验 + 概念检查），形成"执行 → 核验 → 交付"闭环
+- **literature-review.md**：并入队友 v2 全部升级（系统综述方法学/PRISMA 2020/GRADE 证据分级/证据矩阵/荟萃分析/剂量-反应/亚组分析/自动检索 API），v1.0 → 14 节
+- **data-visualization.md**：并入「机制图/通路图绘制规范」（第 10 节，语义约定/布局要素/图注交付/常见错误）与「证据综合图三件套」（第 11 节，森林图/漏斗图/剂量-反应曲线，含 matplotlib 骨架）；9 节 → 11 节；交叉引用修正（假说图→proposal 第 5 节、证据矩阵→literature-review 第 4 节）
+- **citation-gbt7714.md**：并入队友「三级引用核验」框架（新增 7.4 节：L1 存在性/L2 元数据/L3 支持性），**与 citation_verifier.py 实做工具对接**——L1/L2 一键自动化、L3 人工确认，"验什么"（队友框架）×"自动验"（本工具）互补闭环；常见错误清单 +3 条（曲解引用/三级核验/未核验标注）
+- **proposal-nsfc.md**：并入队友「科学假说图/机制图内容规范」（第 5 节子节：要素/图文对照/路径证据分层/验证闭环）+ 假说图诊断（第 9 节扩展）——与技术路线图形成"为什么做（假说图）+ 怎么做（路线图）"标配
+- **paper-polish.md**：以队友重构版为主体（首轮文体识别与编辑计划 + 按文体路由加载子指南），融合另一队友 v2 版「概念修正」三类高频混淆对照表（第 7 节：统计/机器学习/研究方法）与「多语言与英文学术写作」（第 8 节：术语双语表/转换流程/边界声明）
+- **新增文件**：document-export.md、peer-review.md、paper-polish-{stem,academic,literary,practical,evaluation,performance,integration}.md 共 9 个
+
+### 集成验证
+- 结构：7 模块主指南 + 7 个润色子指南共 14 个路由文件全部存在，SKILL.md 路由表与实际文件一一对应 ✓
+- 脚本回归：citation_formatter 批量格式化正常输出、citation_verifier --year-report 正常（v1.6 修复的解析逻辑在集成分支无回退）✓
+- 冲突解决：双方修改的 6 个文件（SKILL.md/data-visualization/citation-gbt7714/proposal-nsfc/paper-polish 及 frontmatter）融合策略已记录，无一方内容被静默丢弃 ✓
+- 新增 .gitignore：排除 __pycache__ 与 .temp 测试输出，保持仓库干净
+
 ## v1.6.0（2026-10-14）—— 申报书撰写模块双线化（撰写+体检）+ 引文解析增强
 
 > 团队分工扩展：新增「组会纪要」板块，申报书撰写模块由负责人接手升级。
