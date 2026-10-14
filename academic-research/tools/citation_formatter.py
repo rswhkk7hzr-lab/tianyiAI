@@ -269,6 +269,21 @@ def _parse_citation(raw):
             d["publisher"] = pm.group(2).strip()
             d["source"] = None
 
+    # 会议析出修正（v1.6）：标题段内嵌"[C]//论文集名"——题名在 "//" 前，
+    # 论文集名进 source；原来源段若为"出版地: 主办方"形态，保留为出版项
+    cm = re.search(r"^(.*?)\s*(?:\[([A-Z]{1,2}(?:/OL)?)?\])?\s*//\s*(.+)$", d["title"] or "")
+    if cm and cm.group(1) and cm.group(1).strip():
+        old_src = d.get("source")
+        if old_src and re.match(r"^[^:：.]{2,20}[:：]\s*\S+$", old_src):
+            m_cp = re.match(r"^([^:：]+)[:：]\s*(.+)$", old_src)
+            if m_cp:
+                d["city"] = m_cp.group(1).strip(" ,.")
+                d["publisher"] = m_cp.group(2).strip(" ,.")
+        if not d["type_mark"] and cm.group(2):
+            d["type_mark"] = cm.group(2)
+        d["title"] = _strip_known(cm.group(1))
+        d["source"] = _strip_known(cm.group(3))
+
     # 来源可能粘在标题尾（"中文信息学报 2020 34(8) 1-15"被整段塞进标题）
     if d["title"] and d["source"] is None and d["volume"]:
         m3 = re.match(r"^(.*?)\s+([\u4e00-\u9fa5]{2,12}|[A-Z][A-Za-z ]{2,30})\s*$", d["title"])
@@ -350,8 +365,14 @@ def render_gbt(d, index=None, style="numeric"):
         parts.append(f"[{index}]")
     if author_part:
         parts.append(author_part)
+    # 会议析出：题名[C]//论文集名 —— source 并入标题段（v1.6），后续分支不再重复输出
+    source_in_title = False
     if title_part:
-        parts.append(title_part)
+        if type_mark == "C" and d.get("source"):
+            parts.append(f"{title_part}//{_seg(d['source'])}")
+            source_in_title = True
+        else:
+            parts.append(title_part)
 
     if d.get("publisher") or d.get("city"):
         pub = []
@@ -362,13 +383,13 @@ def render_gbt(d, index=None, style="numeric"):
         pub_str = ": ".join(pub)
         if d["year"]:
             pub_str += f", {d['year']}"
-        if d["pages"] and type_mark in ("M", "D"):
+        if d["pages"] and type_mark in ("M", "D", "C"):
             pub_str += f": {d['pages']}"
         parts.append(pub_str)
-        if d.get("source") and d["publisher"] and d["source"] != d["publisher"]:
+        if d.get("source") and not source_in_title and d["publisher"] and d["source"] != d["publisher"]:
             parts.append(d["source"])
     else:
-        src = d.get("source")
+        src = d.get("source") if not source_in_title else None
         if src:
             tail = src
             if d["year"]:
@@ -412,18 +433,39 @@ def render_gbt(d, index=None, style="numeric"):
 # ④ 主流程：批量处理 + 对照表 + 质量报告
 # ---------------------------------------------------------------------------
 
+def _looks_like_new_entry(s):
+    """断行续写判定：行首特征是否为"新条目起点"。
+
+    三类可靠特征（v1.6 增强，修复"不带序号的独立条目被误并入前一条"）：
+    1. [n] 序号或数字开头（保持 v1.4 原行为，兼容 "1." 式编号）；
+    2. 西文作者段：全大写姓氏 + 缩写名开头，如 "LECUN Y," / "SMITH J K."；
+    3. 中文作者段：2-4 汉字姓名 + 逗号/顿号，如 "王建国, "。
+    其余行（小写开头、"Nature, ..."、出版地开头等）视为前一条的续行。
+    """
+    if re.match(r"^\[?\d+\]?", s):
+        return True
+    if re.match(r"^[A-Z][A-Z\-']+(\s+[A-Z]\.?)+[\s,，\.]", s):
+        return True
+    if re.match(r"^[\u4e00-\u9fff]{2,4}\s*[,，、]", s):
+        return True
+    return False
+
+
 def read_citations(path):
-    """读入引文：txt（每行一条，空行忽略；# 开头注释忽略）/ 直接传引文列表。"""
+    """读入引文：txt（每行一条，空行忽略；# 开头注释忽略）/ 直接传引文列表。
+
+    断行续写：一条引文折行时，非条目起点的行自动并入前一条。
+    难以判定时建议每行开头加 [n] 序号（最可靠）。
+    """
     if isinstance(path, (list, tuple)):
         return [t.strip() for t in path if t.strip()]
     lines = Path(path).read_text(encoding="utf-8").splitlines()
-    # 支持一条引文断行续写：以 [n] 开头的行为新条目
     items, buf = [], ""
     for ln in lines:
         s = ln.strip()
         if not s or s.startswith("#"):
             continue
-        if re.match(r"^\[?\d+\]?", s) or (buf == ""):
+        if buf == "" or _looks_like_new_entry(s):
             if buf:
                 items.append(buf)
             buf = s

@@ -15,7 +15,8 @@
 | `demo_training_curve.csv` | 3 种模型 × 60 epoch 的验证准确率与损失（单曲线） | plot_line |
 | `demo_binary_classification.csv` | 3 个模型 × 300 样本的二分类预测结果（y_true/y_score/y_pred） | roc_curves / pr_curves / confusion_matrix / AutoReport |
 | `demo_training_multi_seed.csv` | 3 模型 × 3 seed × 25 轮的多 seed 训练记录 | line_band（误差带折线） |
-| `demo_citations_mixed.txt` | 20 条混乱引文（三种来源风格，含标准号/专利/纯URL等边界条目） | citation_formatter |
+| `demo_citations_mixed.txt` | 20 条混乱引文（三种来源风格，含标准号/专利/纯URL等边界条目） | citation_formatter / citation_verifier |
+| `demo_proposal_draft.md` | 虚构申报书草稿（内置 13 处典型问题，附对照表）——仅供体检演示，请勿套用 | proposal-nsfc.md 体检线（誃稿风险体检） |
 
 一键验证：
 - `python tools/plot_templates.py --demo`（十二张图）
@@ -23,3 +24,6 @@
 - `python tools/auto_report.py samples/demo_group_comparison.csv --yes`（一键分析）
 - `python tools/citation_formatter.py --demo`（引文批量格式化）
 - `python tools/citation_verifier.py --demo`（引文核验+元数据补全，需网络）
+- `python tools/citation_verifier.py samples/demo_citations_mixed.txt --year-report`（年份结构体检，不联网）
+
+> AI生成

@@ -21,6 +21,7 @@ citation_verifier.py — 引文元数据补全与真伪核验（academic-researc
   python citation_verifier.py 引文.txt --verify              # 真伪核验
   python citation_verifier.py 引文.txt --enrich              # 元数据补全（补全后输出新格式化表）
   python citation_verifier.py 引文.txt --verify --enrich     # 核验+补全一体
+  python citation_verifier.py 引文.txt --year-report         # 年份结构体检（不联网）：近5年占比/总数/分布
   python citation_verifier.py --demo                         # 样例集自验
 
 依赖：仅 Python 标准库（urllib/json/difflib）+ citation_formatter 本地解析。
@@ -246,6 +247,95 @@ def run_verify(raw_list, do_verify=True, do_enrich=False, out_dir=None,
     return results
 
 
+# ---------------------------------------------------------------------------
+# 年份结构分析（v1.6 新增：申报书/文献表体检——“参考文献陈旧、近5年占比低”是明文毙稿原因）
+# ---------------------------------------------------------------------------
+
+def _extract_year(parsed):
+    """从解析字段中提取 4 位年份（容错 '2019'/'2019-05' 等形式）。"""
+    y = parsed.get("year")
+    if y is None:
+        return None
+    m = re.match(r"(1[89]\d{2}|20\d{2})", str(y).strip())
+    return int(m.group(1)) if m else None
+
+
+def _year_stats(parsed_list, recent_window=5):
+    """统计文献表年份结构（纯本地，不联网）。"""
+    cur = time.localtime().tm_year
+    recent_low = cur - recent_window + 1  # 近5年 = [cur-4, cur]
+    years, missing = [], []
+    for i, parsed in enumerate(parsed_list, 1):
+        y = _extract_year(parsed)
+        if y:
+            years.append((i, y, parsed))
+        else:
+            missing.append((i, parsed))
+    recent = [(i, y, p) for (i, y, p) in years if recent_low <= y <= cur]
+    oldest = sorted(years, key=lambda t: t[1])[:5]
+    buckets = {}
+    for _, y, _p in years:
+        b = (y // 5) * 5
+        buckets[b] = buckets.get(b, 0) + 1
+    return {"total": len(parsed_list), "with_year": len(years), "missing": missing,
+            "recent": recent, "recent_low": recent_low, "cur": cur,
+            "oldest": oldest, "buckets": buckets}
+
+
+def _render_year_report(stats):
+    """年份结构报告 markdown 行（口径：申报书「近5年过半」要求，普通论文可酌情放宽）。"""
+    lines = ["## 年份结构分析", ""]
+    total, wy, rn = stats["total"], stats["with_year"], len(stats["recent"])
+    pct = (100.0 * rn / wy) if wy else 0.0
+    lines.append(f"- 文献总数：{total} 条（含出版年份 {wy} 条，缺年份 {len(stats['missing'])} 条）")
+    if total < 30:
+        lines.append(f"  - ⚠ 总数低于申报书建议区间（30-60 条），立项依据文献支撑可能不足")
+    elif total > 60:
+        lines.append(f"  - ⚠ 总数超过申报书常见区间（30-60 条），可精简突出近 5 年高质量文献")
+    else:
+        lines.append(f"  - ✓ 总数处于申报书建议区间（30-60 条）")
+    lines.append(f"- 近 5 年（{stats['recent_low']}–{stats['cur']}）：{rn} 条，占含年份文献 {pct:.0f}%")
+    if wy and pct < 50:
+        lines.append(f"  - ⚠ 占比未过半——“参考文献陈旧（近5年占比低）”是常见誃稿原因，建议补充近年文献")
+    elif wy:
+        lines.append(f"  - ✓ 近 5 年占比过半，符合申报书“近年文献为主”的要求")
+    if stats["buckets"]:
+        lines.append("- 年份分布（5年一桶）：")
+        for b in sorted(stats["buckets"]):
+            n = stats["buckets"][b]
+            lines.append(f"  - {b}–{b+4}：{n} 条 {'█' * n}")
+    if stats["missing"]:
+        idxs = ", ".join(f"[{i}]" for i, _ in stats["missing"])
+        lines.append(f"- 缺出版年份的条目：{idxs}（建议执行 --verify --enrich 联网补全，或人工补全后复核）")
+    if stats["oldest"]:
+        lines.append(f"- 最早的 {min(5, len(stats['oldest']))} 条文献（经典文献可保留，注意评述其局限）：")
+        for i, y, p in stats["oldest"]:
+            title = str(p.get("title") or "")[:50] or "（无标题）"
+            lines.append(f"  - [{i}] {y} — {title}")
+    lines.append("")
+    return lines
+
+
+def run_year_report(input_path, out_dir=None):
+    """--year-report 入口：本地年份解析（不联网）→ 年份结构报告。"""
+    out_dir = Path(out_dir) if out_dir else DEFAULT_OUT
+    out_dir.mkdir(parents=True, exist_ok=True)
+    raw = read_citations(input_path)
+    parsed_list = [_parse_citation(r) for r in raw]
+    stats = _year_stats(parsed_list)
+    lines = ["# 文献年份结构报告", "",
+             f"- 生成时间：{time.strftime('%Y-%m-%d %H:%M')}",
+             f"- 数据源：本地解析（不联网，秒出）；如需真伪核验与元数据补全，请执行 --verify --enrich", ""]
+    lines += _render_year_report(stats)
+    lines += ["## 使用说明", "",
+             "- 近 5 年占比按申报书口径（近 5 年过半）评估，普通期刊论文可按投稿要求酌情放宽；",
+             "- 缺年份条目建议执行 `--verify --enrich` 联网补全后重新体检；",
+             "- 本报告只做结构统计，不做真伪判定（真伪核验见核验报告）。"]
+    report_path = out_dir / "年份结构报告.md"
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    return report_path
+
+
 def export_verify_report(results, out_dir, enriched_table=None):
     """输出核验报告（+可选补全后的新文献表）。"""
     out_dir = Path(out_dir)
@@ -277,6 +367,8 @@ def export_verify_report(results, out_dir, enriched_table=None):
         if e["filled"]:
             lines.append(f"- 已补全字段：{', '.join(e['filled'])}")
         lines.append("")
+    # 年份结构附加段（基于核验/补全后的元数据，年份更准）
+    lines += _render_year_report(_year_stats([e["parsed"] for e in results]))
     lines.append("## 使用说明")
     lines.append("")
     lines.append("- `✓ 已验证`：DOI 直查命中 Crossref 权威元数据，文献真实存在；")
@@ -317,9 +409,14 @@ def main(argv=None):
     ap.add_argument("--sim", type=float, default=SIM_THRESHOLD,
                     help=f"标题匹配相似度阈值（默认 {SIM_THRESHOLD}）")
     ap.add_argument("--demo", action="store_true", help="样例集演示（前5条）")
+    ap.add_argument("--year-report", action="store_true",
+                    help="仅年份结构分析（不联网）：总数/近5年占比/分布/缺年份")
     args = ap.parse_args(argv)
     if args.demo:
         _demo()
+    elif args.input and args.year_report:
+        p = run_year_report(args.input, out_dir=args.out)
+        print(f"\n输出：{p}")
     elif args.input and (args.verify or args.enrich):
         raw = read_citations(args.input)
         results = run_verify(raw, do_verify=args.verify, do_enrich=args.enrich,

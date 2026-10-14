@@ -206,6 +206,8 @@ python tools/citation_verifier.py 引文.txt --verify --enrich
 
 **判定边界（必须遵守）**：未命中 ≠ 编造；只输出核验状态与证据，不下"编造"结论，最终判断权归用户。
 
+**年份结构体检**（v1.6 新增）：`python tools/citation_verifier.py 引文.txt --year-report` —— 本地解析不联网，输出总数评估（30-60 条申报书口径）、**近 5 年占比**（"参考文献陈旧"是明文毙稿原因）、年份分布直方、缺年份清单；`--verify --enrich` 的核验报告末尾亦自动附加该分析段。
+
 ### 7.3 与其他模块协同
 
 - 论文润色时（paper-polish.md）发现参考文献问题 → 转本模块体检流程
