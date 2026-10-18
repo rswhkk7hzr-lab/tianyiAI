@@ -1,0 +1,20 @@
+[1] 张伟，李明，王芳，刘强，陈静．基于深度学习的图像识别方法研究[J]．计算机学报，2023，46(5)：100-110．
+[2] Smith J, Lee K, Wang M, Zhang Y, Chen L. Deep learning for computer vision: A survey. Nature, 2021, 590(7845): 123-130.
+[3] 李明. 面向5G通信的边缘计算关键技术研究[D]. 重庆邮电大学, 2022.
+[4] 周志华. 机器学习[M]. 北京: 清华大学出版社, 2016: 25-40.
+[5] LeCun Y, Bengio Y and Hinton G. Deep learning[J]. Nature, 2015, 521(7553): 436-444. DOI:10.1038/nature14539.
+[6] 王小明, 赵倩. 智能问答系统研究综述[J]. 中文信息学报 2020 34(8) 1-15
+[7] Krizhevsky A, Sutskever I, Hinton G E. ImageNet classification with deep convolutional neural networks[C]. Advances in Neural Information Processing Systems, 2012: 1097-1105.
+[8] 刘洋，孙伟，等．区块链技术在数据安全中的应用[J]．信息安全研究，2019，5(3)：210-218．
+[9] LeCun Y, Bengio Y and Hinton G. Deep learning[J]. Nature, 2015, 521(7553): 436-444.
+[10]陈晓．面向智慧教育的学习分析技术研究［D］．北京师范大学，2021．
+[11] Goodfellow I, Bengio Y, Courville A. Deep Learning[M]. Cambridge: MIT Press, 2016.
+[12] 中国国家标准化管理委员会. 信息与文献 参考文献著录规则: GB/T 7714-2015[S]. 北京: 中国标准出版社, 2015.
+[13] Vaswani A, Shazeer N, Parmar N, Uszkoreit J, Jones L, Gomez A N, Kaiser L. Attention is all you need[C]. NIPS, 2017: 5998-6008.
+[14] https://www.cqupt.edu.cn/info/1023/4567.htm
+[15] Devlin J, Chang M W, Lee K, Toutanova K. BERT: Pre-training of deep bidirectional transformers for language understanding[C]. NAACL-HLT, 2019: 4171-4186.
+[16] 高志强，钱诗曼．大语言模型评估方法研究进展［J/OL］．计算机科学，2024，51(2)：1－15．https://www.jsjkx.com/xxx.pdf．
+[17] 王磊. 一种基于注意力机制的文本分类方法: CN202310456789.0[P]. 2023-06-15.
+[18] He K, Zhang X, Ren S and Sun J. Deep residual learning for image recognition. CVPR, 2016: 770-778.
+[19] 中华人民共和国教育部. 教育信息化2.0行动计划[EB/OL]. (2018-04-13)[2026-01-20]. http://www.moe.gov.cn/srcsite/A16/s3342/201804/t20180413_332648.html.
+[20] 吴军．数学之美（第三版）［M］．北京：人民邮电出版社，2020．

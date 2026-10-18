@@ -1,0 +1,6 @@
+# Python
+__pycache__/
+*.pyc
+
+# 测试与临时输出
+.temp/
