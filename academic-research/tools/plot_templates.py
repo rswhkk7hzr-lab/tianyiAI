@@ -329,7 +329,7 @@ def make_caption(template, *, x=None, y=None, group=None, stats=None, n=None,
                  yerr=None, caption_label="图"):
     """生成规范图注文字（随图返回，可直接用于论文排版）。
 
-    示例：图1 各模型测试准确率比较（x̄±s, n=5；组间比较采用独立样本t检验，* p<0.05）
+    示例：图1 各模型测试准确率比较（均值±s, n=5；组间比较采用独立样本t检验，* p<0.05）
     """
     parts = []
     subject = f"{y}" + (f" 按 {group} 分组" if group else "") + (f" 随 {x} 变化" if x and template in ("scatter_fit", "plot_line", "line_band") else f" 在各 {x} 组间比较")
@@ -350,7 +350,7 @@ def make_caption(template, *, x=None, y=None, group=None, stats=None, n=None,
     if n is not None:
         detail.append(f"n={n}")
     if yerr in ("std", "se"):
-        detail.append("x̄±s" if yerr == "std" else "x̄±SE")
+        detail.append("均值±s" if yerr == "std" else "均值±SE")
     if stats:
         detail.append(f"检验方法：{stats}")
     tail = "；".join(detail)
@@ -675,6 +675,10 @@ def violin(df, x, y, *, xlabel=None, ylabel=None, title=None,
     _apply_font_scale(font_scale)
     cats = list(pd.unique(df[x].dropna()))
     data = [df[df[x] == c][y].dropna().values for c in cats]
+    # 空组过滤：类别存在但无数据时跳过，避免 violinplot 长度不匹配崩溃
+    _pairs = [(c, v) for c, v in zip(cats, data) if len(v) > 0]
+    cats = [c for c, _ in _pairs]
+    data = [v for _, v in _pairs]
     vp = ax.violinplot(data, positions=range(len(cats)), widths=0.7,
                        showmeans=False, showextrema=False)
     palette = _resolve_colors(colors)
@@ -1121,7 +1125,7 @@ def _demo():
     print("   各模型最优点：", {k: (v["x"], round(v["y"], 2)) for k, v in r5["best"].items()}, "\n")
 
     df5 = pd.read_csv(samples / "demo_group_comparison.csv")
-    sub5 = df5[df5["dataset"] == "CIFAR-10"][["model", "accuracy"]]
+    sub5 = df5[df5["dataset"] == df5["dataset"].unique()[0]][["model", "accuracy"]]
     r6 = violin(sub5, x="model", y="accuracy", ylabel="测试准确率/(%)",
                 save_path=DEFAULT_OUT / "demo_6_violin.png")
     print("6) 小提琴图 →", r6["save_path"], "｜图注：", r6["caption"])
@@ -1144,8 +1148,9 @@ def _demo():
     print("9) PR曲线 →", r9["save_path"])
     print("   AP：", {k: v["ap"] for k, v in r9["models"].items()}, "\n")
 
-    r10 = confusion_matrix(df6[df6["model"] == "GBDT"], true_col="y_true", pred_col="y_pred",
-                           normalize=True, title="GBDT模型混淆矩阵（行归一化）",
+    _cm_model = df6["model"].unique()[1] if df6["model"].nunique() > 1 else df6["model"].unique()[0]
+    r10 = confusion_matrix(df6[df6["model"] == _cm_model], true_col="y_true", pred_col="y_pred",
+                           normalize=True, title=f"{_cm_model}模型混淆矩阵（行归一化）",
                            save_path=DEFAULT_OUT / "demo_10_confusion_matrix.png")
     print("10) 混淆矩阵 →", r10["save_path"])
     print("    总体准确率：", r10["accuracy"], "｜各类F1：", {k: v["f1"] for k, v in r10["per_class"].items()}, "\n")
@@ -1256,6 +1261,11 @@ def _replay_cli(args):
 
 
 def main(argv=None):
+    try:  # Windows GBK 控制台无法编码 ✓/⚠ 等符号：替换而非崩溃（v2.1.1）
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="学术出图模板脚本")
     ap.add_argument("--demo", action="store_true", help="用 samples/ 示例数据生成十二张演示图")
     ap.add_argument("--out", default=None, help="演示图输出目录（默认 .temp/plots/）")

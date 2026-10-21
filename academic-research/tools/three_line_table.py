@@ -102,7 +102,8 @@ def _fill_cell(cell, text, *, align="center", bold=False, size_pt=10.5):
 
 def df_to_three_line_table(df, caption=None, note=None, save_path=None,
                            align=None, index=False, index_label="",
-                           mean_sd_cols=None, decimals=2, sig_map=None):
+                           mean_sd_cols=None, decimals=2, sig_map=None,
+                           bold_if=None):
     """DataFrame → Word 三线表（.docx）。
 
     对齐规范：**默认全表居中**（高校学位论文模板主流）；投期刊需数字列右对齐时，
@@ -120,6 +121,8 @@ def df_to_three_line_table(df, caption=None, note=None, save_path=None,
     mean_sd_cols : 需要合并为 "均值±标准差" 的列对列表，如 [("mean", "std")]（保序）
     decimals : 数值列保留小数位
     sig_map : 数值→星号映射函数，如 lambda v: "***" if v > 0.99 else ""
+    bold_if : 单元格加粗判定函数 (col_name, value, row_index) -> bool，
+              用于"最优值加粗"等论文表格惯例（v3.0）
 
     返回
     ----
@@ -182,7 +185,8 @@ def df_to_three_line_table(df, caption=None, note=None, save_path=None,
                 text = f"{val:.{decimals}f}"
                 if sig_map:
                     text += sig_map(val)
-            _fill_cell(table.rows[i + 1].cells[j], text, align=col_align)
+            bold = bool(bold_if and bold_if(col, val, i))
+            _fill_cell(table.rows[i + 1].cells[j], text, align=col_align, bold=bold)
 
     # ---- 三线（顶线1.5pt=12、栏目线0.75pt=6、底线1.5pt=12）----
     for j in range(n_cols):
@@ -230,6 +234,12 @@ def _demo():
 
 if __name__ == "__main__":
     import argparse
+    import sys
+    try:  # Windows GBK 控制台无法编码 ✓/⚠ 等符号：替换而非崩溃（v2.1.1）
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="学术三线表生成脚本")
     ap.add_argument("--demo", action="store_true", help="用 samples/ 数据生成三线表示例")
     args = ap.parse_args()

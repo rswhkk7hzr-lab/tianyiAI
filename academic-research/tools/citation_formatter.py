@@ -598,6 +598,11 @@ def _demo():
 
 
 def main(argv=None):
+    try:  # Windows GBK 控制台无法编码 ✓/⚠ 等符号：替换而非崩溃（v2.1.1）
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="GB/T 7714 参考文献批量格式化")
     ap.add_argument("input", nargs="?", help="引文 txt 文件（每行一条）")
     ap.add_argument("--style", default="numeric", choices=["numeric", "author_year"],

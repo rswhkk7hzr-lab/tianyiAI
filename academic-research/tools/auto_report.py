@@ -508,6 +508,11 @@ def run_autoreport(csv_path, group=None, value=None, x=None, y=None,
 
 
 def main(argv=None):
+    try:  # Windows GBK 控制台无法编码 ✓/⚠ 等符号：替换而非崩溃（v2.1.1）
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="CSV 一键分析报告（AutoReport）")
     ap.add_argument("csv", help="输入 CSV 文件路径")
     ap.add_argument("--group", default=None, help="组间比较：分组列名（类别）")

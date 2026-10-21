@@ -2,6 +2,41 @@
 
 本技能采用语义化版本号记录迭代，作为作品「迭代优化」的过程档案。
 
+## v3.0.0（2026-10-21）—— 课题垂直化：微调实验结论稳健性研究流水线（老师五方向落地）
+
+> 老师指导五方向之二「课题垂直化」与之一「一体化」的合并落地：定位从"通用学术工具箱"重写为
+> "大模型微调实验科研流水线"——七大通用模块按流水线阶段重新组织，新增领域方法学层与两个领域工具。
+> 课题经多轮调研与痛点论证后定为**「低资源条件下微调实验结论的稳健性研究——以电信告警分类为例」**：
+> RQ1 单 seed 结论可信度与结论翻转率（主线）、RQ2 训练病理与泛化相关性（暗线，train_doctor 输出变量化）、
+> RQ3 精度-成本权衡前沿（应用）；载体任务贴合主办方电信背景与邮电大学学科 heritage，演示数据整体换标。
+> 选型依据：benchmark 调包题（流失预测/入侵检测等）被"课题简单"否掉，方法学研究问题（稳健性/相关性）
+> 兼具科研纵深与工具差异化——实验纪律本身成为研究对象。
+
+### 新增（Features）
+- **领域层 `references/llm-finetune-experiment.md`**（微调实验方法学，7 节）：实验设计规范（基线/策略对比矩阵/超参清单/一次一因子消融/多 seed 规范）、train_doctor 诊断工作流与判据表、评估规范（指标选择/多 seed 口径/数据泄漏红线）、experiment_table 用法、演示数据场景映射、与七模块流水线衔接图。
+- **`tools/train_doctor.py`（训练曲线确定性诊断器，领域核心）**：微调训练日志 CSV → 九类病理自动检出——训练发散（NaN/爆炸）、Loss spike（滞后中位数跳变）、过拟合（EMA 平滑拐点+噪声超越判据）、欠拟合/未收敛、振荡偏大（一阶差分稳健抖动）、早停建议、eval<train 倒置、指标-loss 背离、恒定 lr 调度建议。每条结论附 epoch 区间+数值证据+处置建议；输出风险卡片报告 + 标注诊断图（问题区阴影/spike 标记/早停线/指标副面板）+ `.diagnosis.json`（数据指纹存档）；多 run 日志自动拆分诊断；`--html` 接 report_html。列名自动识别（epoch/train_loss/eval_loss/lr/指标/多 run）。
+- **`tools/experiment_table.py`（对比/消融表生成器）**：实验结果 CSV → Word 三线表。mean±std 自动合并、每列最优值自动加粗（指标方向按名推断 `--metrics` 可覆盖）、`--baseline`+`--delta` 出 Δ 提升量列、组件开关列自动 ✓/✗、因子列原样呈现；同步输出 Markdown 预览。
+- **`three_line_table.py` 新增 `bold_if` 参数**：单元格级加粗判定回调（最优值加粗的底层支撑），向后兼容。
+- **演示数据微调语义化**：group_comparison 换标为"4 运维任务×3 微调策略"、training_curve/multi_seed 换标策略名、binary_classification 换标"基座零样本/Full-FT/LoRA"；新增 `demo_finetune_results.csv`（4 策略+基座对比）、`demo_ablation.csv`（组件消融）、`demo_trainlog_{healthy,overfit,lr_high,spike}.csv`（四种病理日志）；samples/README 全面重写为场景映射表。
+
+### 变更（Changes）
+- **SKILL.md 流水线重写**：定位改为"大模型微调实验科研流水线"；新增流水线全景图（选题综述→实验设计→训练监控→结果分析→论文写作→投稿自审→成果交付）；七模块按流水线阶段分组呈现；通用工作流程第 4 步新增微调实验口径核验；诚信红线新增"不虚构实验"条款。
+- description 重写：领域层+流程层双层结构，路由关键词补充微调实验全套。
+
+### 实测验证
+- `train_doctor.py --demo`：四例病理精确命中且**零误报**——healthy 零检出、overfit 高危@ep37（设计拐点34）、lr_high 振荡中危、spike 双点标记；标注图视觉验证通过（阴影/虚线/散点/副面板联动）。
+- `experiment_table.py --demo`：对比表最优值 docx 实测加粗命中（Full-FT acc/f1/loss、QLoRA latency）；Δ 列相对基线正确；消融表 ✓/✗ 渲染、A3 最优加粗。
+- 调试记录：过拟合规则曾误报于噪声假拐点→改 EMA+噪声超越判据；spike 规则曾误报下降沿→改带符号向上跳变；振荡规则曾被 spike 拖尾污染→改一阶差分抖动（MAD 免疫离群）。
+
+## v2.1.1（2026-10-21）—— 修复：Windows GBK 控制台下 --demo 输出崩溃
+
+### 修复（Bug Fixes）
+- **`plot_templates.py` 图注字符崩溃**：`make_caption` 输出含 Unicode 组合长音符 `x̄`（U+0304），GBK 控制台无法编码，`--demo` 自验在第 12 图打印图注处 `UnicodeEncodeError` 退出码 1——"一键自验"命令在 Windows 原生控制台必崩。修复：图注改国标写法"均值±s/均值±SE"（GBK 安全且为中文论文惯例）。
+- **全局输出兜底**：实测 `✓/✗/⚠/¯` 同样无法 GBK 编码，五个工具入口（plot_templates/auto_report/citation_formatter/citation_verifier/report_html/three_line_table）统一加 `stdout/stderr reconfigure(errors="replace")`——符号不可编码时替换为 `?` 而非崩溃，文件输出不受影响。
+
+### 验证
+- `plot_templates.py --demo` 修复前退出码 1、修复后 12 图全通退出码 0；`experiment_table.py --demo`（含 ✓/✗ 输出）不再崩溃。
+
 ## v2.1.0（2026-10-21）—— 报告产品化 HTML 输出（展示效果升级·演示门面）
 
 > 背景：老师指导五方向（一体化/课题垂直化/UI 展示/差异化论证/领域创新）。UI 方案讨论结论：

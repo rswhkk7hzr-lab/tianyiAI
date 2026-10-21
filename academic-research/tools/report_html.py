@@ -300,6 +300,11 @@ def render_file(md_path, out_path=None, title=None):
 
 
 def main():
+    try:  # Windows GBK 控制台无法编码 ✓/⚠ 等符号：替换而非崩溃（v2.1.1）
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="Markdown 报告 → 单文件 HTML（学术产品化呈现）")
     ap.add_argument("input", help="输入 .md 报告文件")
     ap.add_argument("-o", "--out", default=None, help="输出 .html 路径（默认同名）")
