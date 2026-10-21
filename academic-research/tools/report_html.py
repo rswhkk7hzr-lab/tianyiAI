@@ -33,58 +33,96 @@ from pathlib import Path
 
 _CSS = """
 :root{
-  --primary:#1a5fb4; --dark:#0d2b52; --line:#dbe4ee; --gray:#5a6b7d;
-  --high:#c0392b; --high-bg:#fdeceb; --mid:#b95c00; --mid-bg:#fdf3e4;
-  --low:#0b8a6d; --low-bg:#e8f6f0; --ok:#0b8a6d; --warn:#c0392b;
+  --primary:#2f5fd0; --primary-d:#22469f; --dark:#16294d; --ink:#22314a;
+  --line:#e2e9f4; --gray:#64748b; --bg:#f2f5fb;
+  --high:#c03028; --high-bg:#fdf0ee; --high-line:#f3c6bf;
+  --mid:#b45309; --mid-bg:#fdf6e7; --mid-line:#edd9ae;
+  --low:#0f7a5f; --low-bg:#e9f6f0; --low-line:#bfe6d4;
+  --ok:#0f7a5f; --warn:#c03028;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
-  color:#1d2a3a;background:#eef3f9;line-height:1.75;font-size:15px}
-.page{max-width:920px;margin:0 auto;padding:34px 30px 60px}
-.hero{background:linear-gradient(135deg,#0d2b52 0%,#1a5A8A 100%);
-  color:#fff;border-radius:14px;padding:34px 36px;margin-bottom:26px}
-.hero h1{font-size:27px;line-height:1.35;font-weight:700}
-.hero .meta{margin-top:12px;font-size:13px;opacity:.85;line-height:1.9}
+body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei","Source Han Sans SC",
+  "Noto Sans CJK SC",sans-serif;color:var(--ink);background:var(--bg);
+  line-height:1.8;font-size:15px;-webkit-font-smoothing:antialiased}
+.page{max-width:940px;margin:0 auto;padding:40px 28px 72px}
+/* ---------- 页头 ---------- */
+.hero{position:relative;overflow:hidden;color:#fff;border-radius:18px;
+  padding:40px 42px 34px;margin-bottom:28px;
+  background:linear-gradient(120deg,#16294d 0%,#23407c 55%,#2f5fd0 100%);
+  box-shadow:0 12px 32px rgba(22,41,77,.22)}
+.hero::before{content:"";position:absolute;right:-90px;top:-90px;width:280px;height:280px;
+  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%)}
+.hero::after{content:"";position:absolute;right:60px;bottom:-110px;width:220px;height:220px;
+  border-radius:50%;background:radial-gradient(circle,rgba(120,170,255,.18),transparent 70%)}
+.hero h1{font-size:27px;line-height:1.4;font-weight:700;letter-spacing:.5px;
+  position:relative;z-index:1}
+.hero .meta{position:relative;z-index:1;margin-top:14px;font-size:13px;
+  line-height:2;opacity:.88}
 .hero .meta b{font-weight:600}
-h2{font-size:21px;color:var(--dark);border-left:5px solid var(--primary);
-  padding-left:12px;margin:30px 0 14px}
-h3{font-size:17px;color:var(--dark);margin:20px 0 10px}
-h4{font-size:15.5px;color:var(--dark);margin:16px 0 8px}
+/* ---------- 正文卡片 ---------- */
+.content{background:#fff;border-radius:18px;padding:36px 42px;
+  box-shadow:0 6px 24px rgba(22,41,77,.08);border:1px solid #e8edf6}
+h2{font-size:20px;color:var(--dark);font-weight:700;margin:34px 0 14px;
+  padding-bottom:8px;border-bottom:2px solid var(--line);position:relative}
+h2::after{content:"";position:absolute;left:0;bottom:-2px;width:56px;
+  border-bottom:3px solid var(--primary)}
+h3{font-size:16.5px;color:var(--dark);margin:24px 0 10px}
+h4{font-size:15px;color:var(--dark);margin:18px 0 8px}
 p{margin:9px 0}
-ul,ol{margin:8px 0 8px 24px}
-li{margin:4px 0}
-img{max-width:100%;border:1px solid var(--line);border-radius:8px;
-  margin:10px 0;display:block}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.8px;
-  background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(13,43,82,.07)}
-th{background:var(--dark);color:#fff;padding:9px 12px;text-align:left;font-weight:600}
-td{padding:8px 12px;border-bottom:1px solid #edf2f8}
-tr:nth-child(even) td{background:#f7fafd}
+ul,ol{margin:8px 0 8px 26px}
+li{margin:5px 0}
+li::marker{color:var(--primary);font-weight:600}
+img{max-width:100%;border:1px solid var(--line);border-radius:12px;
+  margin:14px auto;display:block;box-shadow:0 4px 16px rgba(22,41,77,.10)}
+table{width:100%;border-collapse:separate;border-spacing:0;margin:14px 0;
+  font-size:13.6px;background:#fff;border-radius:12px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:0 2px 10px rgba(22,41,77,.06)}
+th{background:linear-gradient(180deg,#23407c,#1b3468);color:#fff;
+  padding:10px 14px;text-align:left;font-weight:600;letter-spacing:.3px}
+td{padding:8.5px 14px;border-bottom:1px solid #eef2f8}
+tr:nth-child(even) td{background:#f8fafd}
 tr:last-child td{border-bottom:none}
-code{background:#eef2f7;border:1px solid #dde6ef;border-radius:4px;
-  padding:1px 6px;font-family:Consolas,monospace;font-size:13px;color:#c7254e}
-pre{background:#0d2b52;color:#e8eef7;border-radius:10px;padding:14px 16px;
-  overflow-x:auto;margin:12px 0}
+tr:hover td{background:#f0f5fd}
+code{background:#f1f5fb;border:1px solid #e0e8f4;border-radius:5px;
+  padding:1.5px 7px;font-family:Consolas,"Cascadia Code",monospace;
+  font-size:13px;color:#b8325a}
+pre{background:#16294d;color:#e8eef9;border-radius:12px;padding:16px 18px;
+  overflow-x:auto;margin:14px 0;box-shadow:0 4px 14px rgba(22,41,77,.18)}
 pre code{background:none;border:none;color:inherit;padding:0;font-size:13px}
-blockquote{border-left:4px solid var(--primary);background:#fff;
-  padding:10px 16px;margin:10px 0;border-radius:0 8px 8px 0;color:var(--gray)}
-hr{border:none;border-top:1px solid var(--line);margin:22px 0}
-/* 风险卡片：### [风险等级：高/中/低] … */
-.risk{border-radius:10px;padding:14px 18px;margin:14px 0}
-.risk h3{margin:0 0 6px;font-size:16px}
-.risk-high{background:var(--high-bg);border:1px solid #f2c8c4;border-left:6px solid var(--high)}
+blockquote{border-left:4px solid var(--primary);background:#f5f8fe;
+  padding:12px 18px;margin:12px 0;border-radius:0 12px 12px 0;color:var(--gray)}
+hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+/* ---------- 风险卡片 ---------- */
+.risk{border-radius:14px;padding:16px 20px 14px 54px;margin:16px 0;
+  position:relative;box-shadow:0 3px 12px rgba(22,41,77,.07)}
+.risk::before{content:"";position:absolute;left:18px;top:18px;width:20px;height:20px;
+  border-radius:50%;font-size:13px;line-height:20px;text-align:center;
+  color:#fff;font-weight:700}
+.risk-high{background:var(--high-bg);border:1px solid var(--high-line)}
+.risk-high::before{content:"!";background:var(--high)}
 .risk-high h3{color:var(--high)}
-.risk-mid{background:var(--mid-bg);border:1px solid #eedcbe;border-left:6px solid var(--mid)}
+.risk-mid{background:var(--mid-bg);border:1px solid var(--mid-line)}
+.risk-mid::before{content:"?";background:var(--mid)}
 .risk-mid h3{color:var(--mid)}
-.risk-low{background:var(--low-bg);border:1px solid #cbe8dd;border-left:6px solid var(--low)}
+.risk-low{background:var(--low-bg);border:1px solid var(--low-line)}
+.risk-low::before{content:"✓";background:var(--low)}
 .risk-low h3{color:var(--low)}
-/* 状态符号着色 */
+.risk h3{margin:0 0 6px;font-size:16px}
+/* ---------- 状态符号与注释 ---------- */
 .ok{color:var(--ok);font-weight:600}
 .bad{color:var(--warn);font-weight:600}
 .warn{color:var(--mid);font-weight:600}
-.note{font-size:13px;color:var(--gray);background:#fff;border:1px dashed var(--line);
-  border-radius:8px;padding:10px 14px;margin:14px 0}
-@media print{body{background:#fff}.page{padding:0}.hero{border-radius:0}}
+.note{font-size:12.8px;color:var(--gray);background:#f8fafd;
+  border:1px dashed #cfdbec;border-radius:10px;padding:9px 15px;margin:10px 0 16px;
+  text-align:center}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+b,strong{color:var(--dark)}
+@media print{
+  body{background:#fff}.page{padding:0}
+  .hero{box-shadow:none}.content{box-shadow:none;border:none}
+  img{box-shadow:none}
+}
 """
 
 # ---------------------------------------------------------------------------
@@ -272,7 +310,9 @@ def render_file(md_path, out_path=None, title=None):
         return None
     text = md_path.read_text(encoding="utf-8")
     h1 = _page_title(text, title)
-    body = md_to_html(text, md_path.parent)
+    # 首个 # 行已进入 hero，正文剥离避免标题重复
+    body_text = re.sub(r"^#\s+.+\n?", "", text, count=1) if not title else text
+    body = md_to_html(body_text, md_path.parent)
     meta_html = ""
     metas = _meta_from_md(text)
     if metas:
@@ -288,7 +328,7 @@ def render_file(md_path, out_path=None, title=None):
 <body>
 <div class="page">
   <div class="hero"><h1>{_inline(h1)}</h1>{meta_html}</div>
-  {body}
+  <div class="content">{body}</div>
 </div>
 </body>
 </html>

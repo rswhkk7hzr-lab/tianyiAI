@@ -37,9 +37,14 @@
 
 ## 功能全景
 
-### 领域层：大模型微调实验方法学
-- `train_doctor.py` —— 训练曲线确定性诊断：过拟合/欠拟合/Loss spike/振荡/发散/早停等 9 类病理，标注诊断图+风险卡片报告
-- `experiment_table.py` —— 消融/基线对比表一键出 Word 三线表（最优加粗、Δ提升量、✓/✗开关）
+### 领域层：大模型微调实验方法学（研究问题 → 工具）
+- `train_doctor.py` —— 训练曲线确定性诊断：9 类病理规则引擎，标注诊断图+风险卡片报告
+- `robustness_check.py` —— **RQ1 自动化**：结论翻转率量化、逐 seed 名次 bump 图、最少稳健 seed 数、配对显著性
+- `pathology_correlate.py` —— **RQ2 自动化**：诊断输出变量化 → 病理×泛化分组检验（工具输出即研究数据）
+- `experiment_table.py` —— 消融/基线对比表一键出 Word 三线表（最优加粗、Δ提升量、✓/✗开关、指标对比图）
+
+> 创新点：三个研究问题不是叙事而是**确定性工具**——别的队伍讲"我们要研究稳健性"，
+> 我们交付"按一下就能量化结论翻转率"的检验器。通用 AI 没有等价物。
 
 ### 通用科研七模块
 文献综述（PRISMA/GRADE）· 数据可视化（12 类学术图表+AutoReport 一键分析）·
@@ -49,17 +54,21 @@
 ## 快速验证
 
 ```bash
-python tools/train_doctor.py --demo       # 四种训练病理自动检出
-python tools/experiment_table.py --demo   # 对比表+消融表出 Word
-python tools/plot_templates.py --demo     # 12 类学术图全量回归
+python tools/train_doctor.py --demo        # 四种训练病理自动检出
+python tools/robustness_check.py --demo    # 结论翻转率+最少seed数（真实翻转演示）
+python tools/pathology_correlate.py --demo # 18run 病理×泛化相关性分析
+python tools/experiment_table.py --demo    # 对比表+消融表+指标图出 Word
+python tools/plot_templates.py --demo      # 12 类学术图全量回归
 python tools/auto_report.py samples/demo_group_comparison.csv --group model --value accuracy --yes --html
-python tools/citation_verifier.py --demo  # Crossref 真实核验（需联网）
+python tools/citation_verifier.py --demo   # Crossref 真实核验（需联网）
 ```
 
 依赖：`pip install matplotlib pandas scipy python-docx`
 
 ## 实测证据（全部真实跑过）
 
+- **稳健性检验真案例**：告警分类任务 5 seed 数据 → 检出 seed2 名次真实翻转（LoRA 反超 QLoRA），翻转率 20%，配对 t 检验 p=0.43 判"差异不显著"，最少稳健 seed 数=4——单 seed 结论被量化证伪
+- **病理相关性真案例**：18 个 run 批量诊断→健康/病理分组性能梯度（94→53），Mann-Whitney p=0.0001 显著
 - 训练诊断四病理样例**精确命中且零误报**（健康基线零检出/过拟合高危/spike 双点/振荡中危）
 - 引文真伪核验：真实文献 DOI 直查命中（相似度 1.00），编造条目全部"存疑待复核"
 - 申报书体检：内置 13 处典型问题**全部检出**（高 9 + 中 2）

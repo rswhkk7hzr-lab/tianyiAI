@@ -1,6 +1,6 @@
 ---
 name: academic-research
-description: 面向大模型微调实验研究的科研全流程技能，以"微调实验科研流水线"为主线组织七大通用科研模块与一个领域方法学层。【领域层】大模型微调实验方法学——以「低资源条件下实验结论稳健性」为研究问题（单 seed 结论可信度/结论翻转率/训练病理与泛化相关性/精度-成本权衡）：实验设计（基线/微调策略对比矩阵/消融原则/多 seed 稳健性协议）、训练曲线确定性诊断（过拟合/欠拟合/Loss spike/振荡/早停/发散，含标注图与风险卡片报告，诊断输出可变量化用于相关性分析）、消融与基线对比三线表（最优加粗/Δ提升/组件开关）、多 seed 评估与数据泄漏红线。【流程层·七模块】(1) 文献综述生成——结构设计、批判性综述、PRISMA 2020、GRADE 证据分级、荟萃分析、自动检索 API；(2) 数据分析可视化——数据质量检查、统计方法决策表、十二类学术图表模板、三线表、CSV 一键分析报告（AutoReport）、机制图/森林图、导师视角图表诊断；(3) 参考文献排版——GB/T 7714-2015 国标著录、批量格式化、三级引用核验、Crossref 真伪核验与元数据补全、年份结构分析；(4) 论文与文章润色——文体识别、语言学术化、概念修正、多语言与英文学术写作；(5) 申报书撰写——NSFC 核心章节、科学假说图、评审人视角毙稿风险体检；(6) 学术文档导出——Word/PDF 排版组装、图表嵌入、交付检查；(7) 审稿 rubric——投稿前多维度自审与审稿意见撰写。当用户需要大模型微调实验（LoRA/QLoRA/Full-FT 对比、训练曲线诊断、消融实验、微调论文写作），或撰写文献综述/系统综述、生成论文图表/三线表/机制图/森林图、整理或核验参考文献、润色或中英转换论文、撰写申报书或毙稿体检、导出 Word/PDF 文档、投稿前自审时使用。
+description: 面向大模型微调实验研究的科研全流程技能，以"微调实验科研流水线"为主线组织七大通用科研模块与一个领域方法学层。【领域层】大模型微调实验方法学——以「低资源条件下实验结论稳健性」为研究问题（单 seed 结论可信度/结论翻转率/训练病理与泛化相关性/精度-成本权衡）：实验设计（基线/微调策略对比矩阵/消融原则/多 seed 稳健性协议）、训练曲线确定性诊断（过拟合/欠拟合/Loss spike/振荡/早停/发散，含标注图与风险卡片报告，诊断输出可变量化）、**结论稳健性检验（robustness_check：逐 seed 名次翻转图/翻转率/最少稳健 seed 数/配对显著性）**、**病理-泛化相关性分析（pathology_correlate：诊断输出变量化+分组检验）**、消融与基线对比三线表（最优加粗/Δ提升/组件开关/指标对比图）、多 seed 评估与数据泄漏红线。【流程层·七模块】(1) 文献综述生成——结构设计、批判性综述、PRISMA 2020、GRADE 证据分级、荟萃分析、自动检索 API；(2) 数据分析可视化——数据质量检查、统计方法决策表、十二类学术图表模板、三线表、CSV 一键分析报告（AutoReport）、机制图/森林图、导师视角图表诊断；(3) 参考文献排版——GB/T 7714-2015 国标著录、批量格式化、三级引用核验、Crossref 真伪核验与元数据补全、年份结构分析；(4) 论文与文章润色——文体识别、语言学术化、概念修正、多语言与英文学术写作；(5) 申报书撰写——NSFC 核心章节、科学假说图、评审人视角毙稿风险体检；(6) 学术文档导出——Word/PDF 排版组装、图表嵌入、交付检查；(7) 审稿 rubric——投稿前多维度自审与审稿意见撰写。当用户需要大模型微调实验（LoRA/QLoRA/Full-FT 对比、训练曲线诊断、消融实验、微调论文写作），或撰写文献综述/系统综述、生成论文图表/三线表/机制图/森林图、整理或核验参考文献、润色或中英转换论文、撰写申报书或毙稿体检、导出 Word/PDF 文档、投稿前自审时使用。
 name_cn: 微调实验科研流水线
 description_cn: 以「低资源条件下微调实验结论稳健性」为研究问题的大模型微调实验方法学（多 seed 稳健性/训练诊断/消融对比/病理-泛化相关性）＋文献综述、数据可视化、参考文献核验、论文润色、申报书、文档导出、审稿自审七大通用模块一站式辅助。
 create_source: super-agent-skill-creator
@@ -36,8 +36,10 @@ AIGC:
 - **指南**：`references/llm-finetune-experiment.md`（七节：研究问题/实验设计规范/训练诊断/评估规范/实验表格/演示数据/流水线衔接）
 - **工具**：
   - `tools/train_doctor.py` —— 训练曲线确定性诊断：过拟合/欠拟合/未收敛/Loss spike/振荡/发散/早停建议/eval 倒置/指标背离/调度建议；输出标注诊断图+风险卡片报告+`.diagnosis.json` 复现存档；`--demo` 四种典型病理自验
-  - `tools/experiment_table.py` —— 实验对比表/消融表 → Word 三线表：mean±std 自动合并、每列最优自动加粗（指标方向按名推断可覆盖）、`--baseline`+`--delta` 出 Δ 提升量列、组件开关列自动 ✓/✗；`--demo` 双表自验
-- **演示数据**：`samples/demo_finetune_results.csv`、`demo_ablation.csv`、`demo_trainlog_{healthy,overfit,lr_high,spike}.csv`（人工构造，虚构标注）
+  - `tools/experiment_table.py` —— 实验对比表/消融表 → Word 三线表：mean±std 自动合并、每列最优自动加粗（指标方向按名推断可覆盖）、`--baseline`+`--delta` 出 Δ 提升量列、组件开关列自动 ✓/✗、配套指标对比图（嵌入 docx/md）；`--demo` 双表自验
+  - `tools/robustness_check.py` —— **结论稳健性检验器（RQ1）**：逐 seed 名次 bump 图（交叉即翻转）、结论翻转率量化、最少稳健 seed 数（子集共识率曲线）、冠亚军配对显著性；判定卡片（稳健/边际/脆弱）+`.robustness.json` 指纹；`--demo` 两任务对照自验
+  - `tools/pathology_correlate.py` —— **病理×泛化相关性分析器（RQ2）**：批量调用 train_doctor 把诊断标签变量化，与最终指标合并做分组统计/Spearman/非参数检验；分组对比图+`.correlation.json` 指纹；`--demo` 18 run 样例自验
+- **演示数据**：`samples/demo_finetune_results.csv`、`demo_ablation.csv`、`demo_trainlog_{healthy,overfit,lr_high,spike}.csv`、`demo_trainlog_multi_run.csv`+`demo_run_results.csv`（18 run 病理×性能）、`demo_group_comparison.csv`（4任务×3策略×5seed 稳健性矩阵）（人工构造，虚构标注）
 
 ## 通用科研模块（按流水线阶段组织）
 
@@ -102,13 +104,13 @@ AIGC:
 2. **加载模块**：按上方路由读取对应 `references/` 文件后再动手。
 3. **执行任务**：遵循模块内的规范与模板。
 4. **交付前核验**：凡含参考文献的成果，按 `references/citation-gbt7714.md` 第 7.4 节执行三级引用核验（L1/L2 用 `citation_verifier.py` 一键自动化）并随附核验报告；润色类成果按 `references/paper-polish.md` 完成概念检查并输出概念问题清单；微调实验类成果按 `references/llm-finetune-experiment.md` 核对实验设计矩阵与多 seed 口径。
-5. **交付成果**：正式文档默认交付 `.docx`（排版与导出规范见 `references/document-export.md`，可用 docx skill 生成）；中间草稿放 `.temp/`。学术图表优先调用 `tools/plot_templates.py` 出图（十二类模板+矢量输出+绘图配方存档+风格预设+返修批量重绘 `--recipe`）；论文三线表用 `tools/three_line_table.py` 生成；"帮我分析这个 CSV" 类需求优先用 `tools/auto_report.py`（先推荐模式确认，再全自动执行，`--html` 出可视化报告）；训练日志诊断用 `tools/train_doctor.py`（零参数自动识别列，`--html` 出体检报告）；实验对比/消融表用 `tools/experiment_table.py`（最优加粗+Δ列+✓/✗开关）；参考文献批量整理用 `tools/citation_formatter.py`（零参数=国标顺序编码制）；文献真伪核验与元数据补全用 `tools/citation_verifier.py`（Crossref 权威源，未命中≠编造）；文献年份结构分析用 `tools/citation_verifier.py --year-report`；Markdown 报告转可视化 HTML 用 `tools/report_html.py`；用户发来已画好的图要求检查时，按 data-visualization.md 第 9 节执行导师视角图表诊断；用户发来文献表要求检查时，按 citation-gbt7714.md 第 7 节执行引文体检/核验；用户发来申报书草稿要求把关时，按 proposal-nsfc.md 体检线执行毙稿风险体检；用户发来训练日志要求分析时，按 llm-finetune-experiment.md 第 3 节执行曲线诊断；投稿前可按 `references/peer-review.md` 自审 rubric 终检；`samples/` 内为演示数据，仅用于功能验证。
+5. **交付成果**：正式文档默认交付 `.docx`（排版与导出规范见 `references/document-export.md`，可用 docx skill 生成）；中间草稿放 `.temp/`。学术图表优先调用 `tools/plot_templates.py` 出图（十二类模板+矢量输出+绘图配方存档+风格预设+返修批量重绘 `--recipe`）；论文三线表用 `tools/three_line_table.py` 生成；"帮我分析这个 CSV" 类需求优先用 `tools/auto_report.py`（先推荐模式确认，再全自动执行，`--html` 出可视化报告）；训练日志诊断用 `tools/train_doctor.py`（零参数自动识别列，`--html` 出体检报告）；多 seed 结果稳健性检验用 `tools/robustness_check.py`（翻转率+最少seed数+bump图）；病理与最终指标相关分析用 `tools/pathology_correlate.py`（诊断变量化+非参数检验）；实验对比/消融表用 `tools/experiment_table.py`（最优加粗+Δ列+✓/✗开关+指标图）；参考文献批量整理用 `tools/citation_formatter.py`（零参数=国标顺序编码制）；文献真伪核验与元数据补全用 `tools/citation_verifier.py`（Crossref 权威源，未命中≠编造）；文献年份结构分析用 `tools/citation_verifier.py --year-report`；Markdown 报告转可视化 HTML 用 `tools/report_html.py`；用户发来已画好的图要求检查时，按 data-visualization.md 第 9 节执行导师视角图表诊断；用户发来文献表要求检查时，按 citation-gbt7714.md 第 7 节执行引文体检/核验；用户发来申报书草稿要求把关时，按 proposal-nsfc.md 体检线执行毙稿风险体检；用户发来训练日志要求分析时，按 llm-finetune-experiment.md 第 3 节执行曲线诊断；投稿前可按 `references/peer-review.md` 自审 rubric 终检；`samples/` 内为演示数据，仅用于功能验证。
 
 **脚本依赖**（用户环境缺失时先安装再调用，不静默降级）：
 ```bash
 pip install matplotlib pandas scipy python-docx
 ```
-其中 scipy 用于统计检验（缺失时绘图可用、检验降级提示）；python-docx 仅三线表/实验表格生成需要。一键自验：`python tools/plot_templates.py --demo`（十二图全通即依赖就绪）；`python tools/citation_formatter.py --demo`（引文解析就绪）；`python tools/citation_verifier.py --demo`（联网核验就绪）；`python tools/train_doctor.py --demo`（训练诊断就绪）；`python tools/experiment_table.py --demo`（实验表格就绪）。
+其中 scipy 用于统计检验（缺失时绘图可用、检验降级提示）；python-docx 仅三线表/实验表格生成需要。一键自验：`python tools/plot_templates.py --demo`（十二图全通即依赖就绪）；`python tools/citation_formatter.py --demo`（引文解析就绪）；`python tools/citation_verifier.py --demo`（联网核验就绪）；`python tools/train_doctor.py --demo`（训练诊断就绪）；`python tools/experiment_table.py --demo`（实验表格就绪）；`python tools/robustness_check.py --demo`（稳健性检验就绪）；`python tools/pathology_correlate.py --demo`（相关性分析就绪）。
 
 ## 学术诚信红线（必须遵守）
 

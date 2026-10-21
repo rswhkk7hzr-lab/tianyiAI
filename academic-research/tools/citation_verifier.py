@@ -279,7 +279,7 @@ def _year_stats(parsed_list, recent_window=5):
         buckets[b] = buckets.get(b, 0) + 1
     return {"total": len(parsed_list), "with_year": len(years), "missing": missing,
             "recent": recent, "recent_low": recent_low, "cur": cur,
-            "oldest": oldest, "buckets": buckets}
+            "oldest": oldest, "buckets": buckets, "years": years}
 
 
 def _render_year_report(stats):
@@ -316,6 +316,42 @@ def _render_year_report(stats):
     return lines
 
 
+def _plot_year_hist(stats, out_png):
+    """年份分布直方图（近5年窗口高亮）——图文并茂的报告证据。"""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    try:
+        import plot_templates as pt  # 学术样式+中文字体初始化
+        pt._setup_style()
+    except Exception:
+        pass
+    years = [y for _, y, _ in stats["years"]]
+    if not years:
+        return None
+    lo, hi = min(years) - 1, max(years) + 1
+    bins = list(range(lo, hi + 2))
+    counts = {y: years.count(y) for y in range(lo, hi + 1)}
+    recent_low = stats["recent_low"]
+    colors = ["#2f5fd0" if y >= recent_low else "#b8c6dd" for y in counts]
+    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    ax.bar(counts.keys(), counts.values(), color=colors, width=0.72)
+    ax.axvspan(recent_low - 0.5, hi + 0.5, color="#2f5fd0", alpha=0.06)
+    ax.annotate(f"近5年窗口（{recent_low}–{stats['cur']}）",
+                xy=((recent_low + hi) / 2, max(counts.values()) * 0.95),
+                ha="center", fontsize=9, color="#2f5fd0")
+    ax.set_xlabel("出版年份"); ax.set_ylabel("文献数")
+    ax.set_title("参考文献年份分布——蓝=近5年，灰=更早")
+    ax.set_xticks(sorted(counts))
+    step = max(1, len(counts) // 10)
+    ax.set_xticks([y for y in sorted(counts) if (y - lo) % step == 0])
+    ax.grid(axis="y", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=200)
+    plt.close(fig)
+    return out_png
+
+
 def run_year_report(input_path, out_dir=None):
     """--year-report 入口：本地年份解析（不联网）→ 年份结构报告。"""
     out_dir = Path(out_dir) if out_dir else DEFAULT_OUT
@@ -327,6 +363,12 @@ def run_year_report(input_path, out_dir=None):
              f"- 生成时间：{time.strftime('%Y-%m-%d %H:%M')}",
              f"- 数据源：本地解析（不联网，秒出）；如需真伪核验与元数据补全，请执行 --verify --enrich", ""]
     lines += _render_year_report(stats)
+    try:
+        png = _plot_year_hist(stats, out_dir / "年份分布.png")
+        if png:
+            lines += ["", f"![参考文献年份分布]({png.name})", ""]
+    except Exception as e:
+        print(f"[提示] 年份分布图生成失败（不影响报告）：{e}")
     lines += ["## 使用说明", "",
              "- 近 5 年占比按申报书口径（近 5 年过半）评估，普通期刊论文可按投稿要求酌情放宽；",
              "- 缺年份条目建议执行 `--verify --enrich` 联网补全后重新体检；",
@@ -368,7 +410,14 @@ def export_verify_report(results, out_dir, enriched_table=None):
             lines.append(f"- 已补全字段：{', '.join(e['filled'])}")
         lines.append("")
     # 年份结构附加段（基于核验/补全后的元数据，年份更准）
-    lines += _render_year_report(_year_stats([e["parsed"] for e in results]))
+    stats = _year_stats([e["parsed"] for e in results])
+    lines += _render_year_report(stats)
+    try:
+        png = _plot_year_hist(stats, out_dir / "年份分布.png")
+        if png:
+            lines += ["", f"![参考文献年份分布]({png.name})", ""]
+    except Exception as e:
+        print(f"[提示] 年份分布图生成失败（不影响报告）：{e}")
     lines.append("## 使用说明")
     lines.append("")
     lines.append("- `✓ 已验证`：DOI 直查命中 Crossref 权威元数据，文献真实存在；")

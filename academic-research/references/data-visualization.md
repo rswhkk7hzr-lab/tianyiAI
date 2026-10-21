@@ -24,6 +24,10 @@ AIGC:
 10. 机制图/通路图绘制规范
 11. 证据综合图（森林图/漏斗图/剂量-反应曲线）
 
+## 0. 领域内落点（微调实验结论稳健性课题）
+
+本课题的典型数据形态：多 seed 结果长表（method × seed × metric）、训练日志（epoch × loss/metric）、消融开关表。优先图表：`line_band` 多 seed 误差带、`grouped_box` 分组箱线（稳健性直观证据）、`robustness_check` 名次 bump 图与稳定性曲线、`pathology_correlate` 病理分组对比图。统计口径：组间比较按 seed 配对（paired t/Wilcoxon），多组用 ANOVA/Kruskal——`auto_report.py` 按长表直接执行。**先跑 `robustness_check.py` 确认结论稳健，再决定图怎么画**——不稳的结论画图再漂亮也是误导。
+
 ## 1. 分析前：数据质量检查
 
 绘图与检验之前先完成下表，检查结果与处理方式须如实写入报告（不得静默删除或改动数据）：

@@ -25,9 +25,11 @@
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -189,9 +191,48 @@ def to_markdown(disp, bold_mask, info):
     return "\n".join(lines)
 
 
+def _metric_chart(df, method_col, metric_cols, out_png):
+    """主指标对比图（mean±std 误差棒）——表格之外的图形证据。"""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    try:
+        import plot_templates as pt
+        pt._setup_style()
+    except Exception:
+        pass
+    means = [c for c in metric_cols if not re.search(r"(_std|_sd|_se|_n)$", c)]
+    if not means:
+        return None
+    labels = df[method_col].astype(str).tolist()
+    n_m, x = len(means), np.arange(len(labels))
+    w = min(0.8 / max(n_m, 1), 0.28)
+    fig, ax = plt.subplots(figsize=(7.4, 4.0))
+    palette = ["#2f5fd0", "#e67e22", "#27ae60", "#8e44ad", "#c0392b", "#16a085"]
+    for i, c in enumerate(means[:6]):
+        y = pd.to_numeric(df[c], errors="coerce").values
+        err = None
+        for suf in ("_std", "_sd", "_se"):
+            if c + suf in df.columns:
+                err = pd.to_numeric(df[c + suf], errors="coerce").values
+                break
+        ax.bar(x + (i - (n_m - 1) / 2) * w, y, w, yerr=err, capsize=3,
+               label=c, color=palette[i % len(palette)], alpha=0.88)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9, rotation=12 if len(labels) > 5 else 0)
+    ax.set_ylabel("指标值")
+    ax.set_title("各配置指标对比（误差棒=±std）")
+    ax.legend(fontsize=9)
+    ax.grid(axis="y", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=200)
+    plt.close(fig)
+    return out_png
+
+
 def run(csv_path, *, method_col=None, metrics=None, baseline=None, delta=False,
         factor_cols=None, component_cols=None, auto_components=True,
-        caption=None, note=None, decimals=2, out=None):
+        caption=None, note=None, decimals=2, out=None, chart=True):
     """端到端：CSV → 解析 → docx 三线表 + markdown 预览。"""
     csv_path = Path(csv_path)
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
@@ -223,6 +264,29 @@ def run(csv_path, *, method_col=None, metrics=None, baseline=None, delta=False,
     df_to_three_line_table(disp, caption=caption, note=note,
                            save_path=docx_path,
                            bold_if=lambda c, v, i: bool(mask.loc[i, c]))
+    # 图文并茂：指标对比图嵌入 md 预览与 docx
+    png = None
+    if chart:
+        try:
+            m_col = method_col or info.get("method_col") or df.columns[0]
+            num_cols = [c for c in df.columns
+                        if pd.api.types.is_numeric_dtype(df[c])
+                        and c not in factor_cols and c not in component_cols]
+            png = _metric_chart(df, m_col, num_cols,
+                                docx_path.with_name(csv_path.stem + "_指标图.png"))
+        except Exception as e:
+            print(f"[提示] 指标图生成失败（不影响表格）：{e}")
+    if png is not None:
+        md += f"\n\n![各配置指标对比]({png.name})"
+        try:
+            from docx import Document
+            from docx.shared import Inches
+            d = Document(docx_path)
+            d.add_paragraph()
+            d.add_picture(str(png), width=Inches(5.8))
+            d.save(docx_path)
+        except Exception as e:
+            print(f"[提示] docx 插图失败（表格不受影响）：{e}")
     md_path = docx_path.with_suffix(".md")
     md_path.write_text(md + "\n\n> AI生成\n", encoding="utf-8")
     return {"docx": docx_path, "markdown": md_path, "info": info}

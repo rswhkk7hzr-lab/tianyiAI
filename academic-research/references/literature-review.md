@@ -27,6 +27,10 @@ AIGC:
 13. 写作规范与句式库
 14. 质量自检清单
 
+## 0. 领域内落点（微调实验结论稳健性课题）
+
+本课题的综述聚焦两条线：**微调方法学**（PEFT/LoRA/QLoRA/全参微调对比文献）与**实验可复现性**（seed 敏感性、显著性报告规范、reproducibility 方法学）。检索建议关键词：`parameter-efficient fine-tuning`、`LoRA/QLoRA`、`reproducibility`、`random seed variance`、`experimental methodology NLP`、`train instability`。证据矩阵建议按"微调策略 × 报告 seed 数 × 是否报告方差/显著性"建表——这正是为 RQ1 摸底文献中"单 seed 结论"的普遍程度，是综述的批判性切入点。
+
 ## 1. 综述类型与方法学选择
 
 写作前必须先判定综述类型，不同类型的方法学要求完全不同：
