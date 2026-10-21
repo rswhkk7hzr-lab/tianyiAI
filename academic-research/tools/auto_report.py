@@ -516,9 +516,19 @@ def main(argv=None):
     ap.add_argument("--y", default=None, help="相关分析：因变量列名（连续）")
     ap.add_argument("--out", default=None, help="输出目录（默认 .temp/autoreport/）")
     ap.add_argument("--yes", action="store_true", help="全自动执行（默认只出推荐）")
+    ap.add_argument("--html", action="store_true",
+                    help="额外输出单文件 HTML 可视化报告（图片 base64 内嵌，双击即开）")
     args = ap.parse_args(argv)
-    run_autoreport(args.csv, group=args.group, value=args.value,
-                   x=args.x, y=args.y, out_dir=args.out, yes=args.yes)
+    result = run_autoreport(args.csv, group=args.group, value=args.value,
+                            x=args.x, y=args.y, out_dir=args.out, yes=args.yes)
+    if args.html and result and result.get("report"):
+        try:
+            from report_html import render_file
+            html_out = render_file(result["report"])
+            if html_out:
+                print(f"[Step 6] HTML 可视化报告 → {html_out}")
+        except Exception as e:
+            print(f"[warn] HTML 报告生成失败：{e}（Markdown 报告不受影响）")
 
 
 if __name__ == "__main__":
